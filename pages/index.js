@@ -3,8 +3,11 @@
 
 import { useState } from "react";
 import { Bell } from "lucide-react";
+import { redirect } from "next/navigation";
+import { useRouter } from "next/router";
 
 export default function AuthPage() {
+  const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
     email: "",
@@ -143,7 +146,8 @@ export default function AuthPage() {
             )}
 
             <button
-              type="submit"
+              // type="submit"
+              onClick={() => router.push('/dashboard')}
               className="w-full bg-linear-to-r from-cyan-400 to-blue-500 text-white py-3 rounded-xl font-medium hover:from-cyan-500 hover:to-blue-600 transition-all shadow-md hover:shadow-lg"
             >
               {isLogin ? "Sign In" : "Sign Up"}

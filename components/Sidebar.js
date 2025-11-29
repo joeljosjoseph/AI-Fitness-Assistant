@@ -1,8 +1,10 @@
 /* eslint-disable react-hooks/static-components */
 import { Calendar, Camera, Droplets, Dumbbell, Home, LogOut, MessageCircle, Settings } from "lucide-react";
+import { useRouter } from "next/router";
 import React from "react";
 
 const Sidebar = ({ activeTab, sidebarOpen, setActiveTab, setSidebarOpen }) => {
+  const router = useRouter();
   const NavigationItem = ({ icon: Icon, label, value, active }) => (
     <button
       onClick={() => {
@@ -79,7 +81,7 @@ const Sidebar = ({ activeTab, sidebarOpen, setActiveTab, setSidebarOpen }) => {
           value="settings"
           active={activeTab === "settings"}
         />
-        <button className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 transition-all">
+        <button onClick={() => router.push("/")} className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 transition-all">
           <LogOut className="w-5 h-5" />
           <span className="font-medium">Logout</span>
         </button>
