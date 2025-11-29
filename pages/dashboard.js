@@ -22,9 +22,11 @@ import Sidebar from "../components/Sidebar";
 import HomeComponent from "../components/modules/HomeComponent";
 import Posture from "@/components/modules/Posture";
 import Chatbot from "@/components/modules/Chatbot";
+import { useRouter } from "next/router";
 
 
 export default function WorkoutDashboard() {
+  const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
 
@@ -52,7 +54,7 @@ export default function WorkoutDashboard() {
               Lets crush your fitness goals today 💪
             </p>
           </div>
-          <button className="w-12 h-12 rounded-full bg-linear-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white font-semibold shadow-lg">
+          <button onClick={() => router.push("/profile")} className="w-12 h-12 rounded-full bg-linear-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white font-semibold shadow-lg  cursor-pointer">
             <User className="w-6 h-6" />
           </button>
         </div>

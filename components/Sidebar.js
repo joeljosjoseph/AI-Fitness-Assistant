@@ -81,7 +81,7 @@ const Sidebar = ({ activeTab, sidebarOpen, setActiveTab, setSidebarOpen }) => {
           value="settings"
           active={activeTab === "settings"}
         />
-        <button onClick={() => router.push("/")} className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 transition-all">
+        <button onClick={() => router.push("/")} className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 transition-all cursor-pointer">
           <LogOut className="w-5 h-5" />
           <span className="font-medium">Logout</span>
         </button>
