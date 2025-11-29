@@ -54,3 +54,29 @@ export const formatContent = (text) => {
 
     return elements;
 };
+
+export const processBoldText = (text) => {
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, idx) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+            return <strong key={idx} className="font-semibold text-gray-900">{part.slice(2, -2)}</strong>;
+        }
+        return <span key={idx}>{part}</span>;
+    });
+};
+
+export const processLine = (line, idx) => {
+    // Skip empty lines
+    if (!line.trim()) return null;
+
+    // Check for emojis at the end
+    const emojiMatch = line.match(/(.+?)(\s*[💪🏋️‍♂️🏃‍♀️🎯💯🔥✨👍⚡🌟]+\s*)$/);
+
+    return (
+        <p key={idx} className="text-gray-800 leading-relaxed mb-3">
+            {processBoldText(emojiMatch ? emojiMatch[1] : line)}
+            {emojiMatch && <span className="ml-1">{emojiMatch[2]}</span>}
+        </p>
+    );
+};
+

@@ -3,7 +3,7 @@
 import { MessageCircle, Send, Loader2 } from 'lucide-react';
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { formatContent } from '@/utils/functions';
+import { formatContent, processLine } from '@/utils/functions';
 
 
 const SYSTEM_INSTRUCTION = `You are a professional fitness coach and workout assistant. Your role is to:
@@ -33,44 +33,13 @@ const Chatbot = () => {
     // Component to format assistant messages with proper markdown-like rendering
     const FormattedMessage = ({ content }) => {
 
-        // Process content for bold text (**text**)
-        const processBoldText = (text) => {
-            const parts = text.split(/(\*\*.*?\*\*)/g);
-            return parts.map((part, idx) => {
-                if (part.startsWith('**') && part.endsWith('**')) {
-                    return <strong key={idx} className="font-bold">{part.slice(2, -2)}</strong>;
-                }
-                return <span key={idx}>{part}</span>;
-            });
-        };
-
-        // Split by line breaks and format
-        const lines = content.split('\n\n');
+        // Split content by single line breaks to preserve structure
+        const lines = content.split('\n').filter(line => line.trim());
 
         return (
-            <div className="space-y-2">
-                {lines.map((line, idx) => {
-                    // Check if it's a heading (starts with # or all caps with :)
-                    if (line.match(/^[A-Z\s]+:$/)) {
-                        return (
-                            <h4 key={idx} className="font-bold text-gray-900 mt-4 mb-2 text-base">
-                                {line}
-                            </h4>
-                        );
-                    }
+            <div className="space-y-1">
+                {lines.map((line, idx) => processLine(line, idx))}
 
-                    // Check if it contains numbered list
-                    if (line.match(/\d+\.\s/)) {
-                        return <div key={idx}>{formatContent(line)}</div>;
-                    }
-
-                    // Regular paragraph with bold text support
-                    return (
-                        <p key={idx} className="text-gray-800 leading-relaxed mb-2">
-                            {processBoldText(line)}
-                        </p>
-                    );
-                })}
             </div>
         );
     };
@@ -209,7 +178,6 @@ const Chatbot = () => {
                     <div ref={messagesEndRef} />
                 </div>
             </div>
-
             {/* Input */}
             <div className="p-6 border-t">
                 <div className="flex space-x-3">
