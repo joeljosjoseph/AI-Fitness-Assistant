@@ -1,7 +1,7 @@
 import { Camera, ChevronRight, Clock, Droplets, Dumbbell, MessageCircle, Play, TrendingUp } from 'lucide-react'
 import React from 'react'
 
-const HomeComponent = () => {
+const HomeComponent = ({ setActiveTab }) => {
     // Sample data
     const todayWorkouts = [
         { name: "Push-ups", sets: 3, reps: 15, completed: true },

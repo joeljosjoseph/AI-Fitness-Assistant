@@ -61,7 +61,7 @@ export default function WorkoutDashboard() {
 
         {/* Dashboard Content */}
         {activeTab === "dashboard" && (
-          <HomeComponent />
+          <HomeComponent setActiveTab={setActiveTab} />
         )}
 
         {/* Camera/Posture Tracker Tab */}
