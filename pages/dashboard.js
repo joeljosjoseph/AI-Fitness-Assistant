@@ -23,6 +23,7 @@ import HomeComponent from "../components/modules/HomeComponent";
 import Posture from "@/components/modules/Posture";
 import Chatbot from "@/components/modules/Chatbot";
 import { useRouter } from "next/router";
+import Hydration from "@/components/modules/Hydration";
 
 
 export default function WorkoutDashboard() {
@@ -64,6 +65,11 @@ export default function WorkoutDashboard() {
           <HomeComponent setActiveTab={setActiveTab} />
         )}
 
+        {/* Hydration Content */}
+        {activeTab === "hydration" && (
+          <Hydration />
+        )}
+
         {/* Camera/Posture Tracker Tab */}
         {activeTab === "camera" && (
           <Posture />
@@ -75,7 +81,7 @@ export default function WorkoutDashboard() {
         )}
 
         {/* Other tabs placeholder */}
-        {!["dashboard", "camera", "chat"].includes(activeTab) && (
+        {!["dashboard", "camera", "chat", "hydration"].includes(activeTab) && (
           <div className="bg-white rounded-2xl p-8 shadow-lg">
             <h3 className="text-2xl font-bold text-gray-800 mb-4 capitalize">
               {activeTab}
