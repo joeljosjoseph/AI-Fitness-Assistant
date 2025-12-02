@@ -80,3 +80,32 @@ export const processLine = (line, idx) => {
     );
 };
 
+export const getUserDetails = async (data) => {
+    console.log(data.user.id);
+
+    const userRes = await fetch(`/api/users/me?userId=${data.user.id}`);
+    const userData = await userRes.json();
+    console.log(userData);
+
+    if (!userRes.ok) throw new Error(userData.error);
+
+    return userData
+}
+
+export const getFirstName = () => {
+    if (typeof window !== 'undefined') {
+        // Get the stored user object
+        const userStr = localStorage.getItem('user');
+        if (!userStr) return '';
+
+        try {
+            const user = JSON.parse(userStr);
+            const fullName = user?.login?.fullName || '';
+            return fullName.split(' ')[0]; // Return first name
+        } catch (err) {
+            console.error('Error parsing user from localStorage', err);
+            return '';
+        }
+    }
+    return '';
+};

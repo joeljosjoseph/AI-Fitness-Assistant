@@ -5,6 +5,8 @@ import { useState } from "react";
 import { Bell } from "lucide-react";
 import { redirect } from "next/navigation";
 import { useRouter } from "next/router";
+import { Bounce, ToastContainer, toast } from 'react-toastify';
+import { getUserDetails } from "@/utils/functions";
 
 export default function AuthPage() {
   const router = useRouter();
@@ -16,12 +18,106 @@ export default function AuthPage() {
     name: "",
   });
 
-  const handleSubmit = () => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Form submitted:", formData);
+
+    try {
+      if (isLogin) {
+        // LOGIN
+        const res = await fetch("/api/users/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: formData.email, password: formData.password }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+
+          toast.error(data.error, {
+            position: "top-right",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: false,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+            theme: "light",
+            transition: Bounce,
+          });
+          console.log(data.error)
+        } else {
+          console.log("Login successful:", data.user);
+          // redirect to dashboard
+          toast.success("Login successful!!!")
+          // Fetch full user info
+          let userData = await getUserDetails(data)
+
+          // Store in localStorage
+          localStorage.setItem("user", JSON.stringify(userData.user));
+          console.log("User stored in localStorage:", userData.user);
+
+          setTimeout(() => router.push("/dashboard"), 500)
+        }
+
+
+
+      } else {
+        // SIGNUP
+        if (formData.password !== formData.confirmPassword) {
+          alert("Passwords do not match");
+          return;
+        }
+
+        const res = await fetch("/api/users/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            login: {
+              fullName: formData.name,
+              email: formData.email,
+              password: formData.password,
+            },
+            personalDetails: {},  // default empty
+            fitnessGoals: {},
+            schedule: {},
+            progress: {},
+            hydration: {},
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          toast.error(data.error, {
+            position: "top-right",
+            autoClose: 5000,
+            pauseOnHover: true,
+            draggable: true,
+            theme: "light",
+            transition: Bounce,
+          });
+          console.log(data.error)
+        } else {
+          console.log("Signup successful:", data.user);
+
+          let userData = getUserDetails(data)
+
+          // Store in localStorage
+          localStorage.setItem("user", JSON.stringify(userData.user));
+          console.log("User stored in localStorage:", userData.user);
+
+          // redirect to dashboard
+          toast.success("Sign up successful!!!")
+          setTimeout(() => router.push("/dashboard"), 500)
+        }
+
+
+      }
+    } catch (err) {
+      alert(err.message);
+    };
   };
 
-  const handleChange = () => {
+  const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
@@ -32,6 +128,7 @@ export default function AuthPage() {
     <div className="min-h-screen bg-linear-to-br from-blue-50 to-cyan-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-lg p-8">
+
           {/* Logo/Header */}
           <div className="flex flex-col items-center mb-8">
             <div className="w-12 h-12 bg-linear-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center mb-4">
@@ -61,7 +158,7 @@ export default function AuthPage() {
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 outline-none transition-all"
+                  className="w-full px-4 py-3 rounded-xl border text-gray-400 border-gray-200 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 outline-none transition-all"
                   placeholder="Enter your name"
                   required={!isLogin}
                 />
@@ -81,7 +178,7 @@ export default function AuthPage() {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 outline-none transition-all"
+                className="w-full px-4 py-3 rounded-xl border text-gray-400 border-gray-200 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 outline-none transition-all"
                 placeholder="Enter your email"
                 required
               />
@@ -100,7 +197,7 @@ export default function AuthPage() {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 outline-none transition-all"
+                className="w-full px-4 py-3 rounded-xl border text-gray-400 border-gray-200 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 outline-none transition-all"
                 placeholder="Enter your password"
                 required
               />
@@ -120,7 +217,7 @@ export default function AuthPage() {
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 outline-none transition-all"
+                  className="w-full px-4 py-3 rounded-xl border text-gray-400 border-gray-200 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 outline-none transition-all"
                   placeholder="Confirm your password"
                   required={!isLogin}
                 />
@@ -146,8 +243,8 @@ export default function AuthPage() {
             )}
 
             <button
-              // type="submit"
-              onClick={() => router.push('/dashboard')}
+              type="submit"
+              // onClick={() => router.push('/dashboard')}
               className="w-full bg-linear-to-r from-cyan-400 to-blue-500 text-white py-3 rounded-xl font-medium hover:from-cyan-500 hover:to-blue-600 transition-all shadow-md hover:shadow-lg"
             >
               {isLogin ? "Sign In" : "Sign Up"}

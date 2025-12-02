@@ -168,7 +168,7 @@ const Workout = () => {
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                             <div
-                                className="bg-gradient-to-r from-cyan-400 to-blue-500 h-3 rounded-full transition-all duration-500"
+                                className="bg-linear-to-r from-cyan-400 to-blue-500 h-3 rounded-full transition-all duration-500"
                                 style={{ width: `${completionPercentage}%` }}
                             />
                         </div>
@@ -187,7 +187,7 @@ const Workout = () => {
                                 <div className="flex items-start gap-4">
                                     <button
                                         onClick={() => toggleExerciseComplete(exercise.id)}
-                                        className={`flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${exercise.completed
+                                        className={`shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${exercise.completed
                                             ? 'bg-green-500 border-green-500'
                                             : 'border-gray-300 hover:border-cyan-500'
                                             }`}
@@ -228,7 +228,7 @@ const Workout = () => {
                     </div>
 
                     {completionPercentage === 100 && (
-                        <div className="mt-6 p-5 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl">
+                        <div className="mt-6 p-5 bg-linear-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl">
                             <p className="text-lg font-bold text-green-800 text-center">
                                 🎉 Congratulations! You&apos;ve completed today&apos;s workout!
                             </p>
@@ -249,7 +249,7 @@ const Workout = () => {
                             <div className="flex justify-between items-start">
                                 <div className="flex-1">
                                     <div className="flex items-center gap-3 mb-2">
-                                        <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+                                        <div className="w-12 h-12 bg-linear-to-br from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center text-white font-bold text-lg">
                                             {workout.day.substring(0, 3)}
                                         </div>
                                         <div>
@@ -297,7 +297,7 @@ const Workout = () => {
                             <div className="flex justify-between items-start mb-4">
                                 <div className="flex-1">
                                     <div className="flex items-center gap-3 mb-2">
-                                        <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-xl flex items-center justify-center text-white">
+                                        <div className="w-12 h-12 bg-linear-to-br from-green-400 to-emerald-500 rounded-xl flex items-center justify-center text-white">
                                             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                             </svg>

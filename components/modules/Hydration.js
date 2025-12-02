@@ -37,7 +37,7 @@ const Hydration = () => {
         }, 60000) // Check every minute
 
         return () => clearInterval(interval)
-    }, [lastDrinkTime, notifications, waterIntake, dailyGoal, workoutIntensity])
+    }, [lastDrinkTime, notifications, waterIntake, dailyGoal, workoutIntensity, getRecommendedInterval])
 
     // Request notification permission
     const requestNotificationPermission = () => {

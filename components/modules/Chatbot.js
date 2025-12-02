@@ -218,8 +218,8 @@ const Chatbot = () => {
                 {messages.map((msg, i) => (
                     <div key={i} className={`flex items-start space-x-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${msg.role === "assistant"
-                            ? "bg-gradient-to-br from-cyan-400 to-blue-500"
-                            : "bg-gradient-to-br from-purple-400 to-pink-500"
+                            ? "bg-linear-to-br from-cyan-400 to-blue-500"
+                            : "bg-linear-to-br from-purple-400 to-pink-500"
                             }`}>
                             {msg.role === "assistant"
                                 ? <MessageCircle className="w-4 h-4 text-white" />
@@ -229,7 +229,7 @@ const Chatbot = () => {
 
                         <div className={`p-4 rounded-2xl max-w-2xl ${msg.role === "assistant"
                             ? "bg-gray-100 rounded-tl-none"
-                            : "bg-gradient-to-br from-cyan-400 to-blue-500 text-white rounded-tr-none"
+                            : "bg-linear-to-br from-cyan-400 to-blue-500 text-white rounded-tr-none"
                             }`}>
                             {msg.role === "assistant"
                                 ? <div>{msg.content.split("\n").map((line, idx) => processLine(line, idx))}</div>

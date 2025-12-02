@@ -1,22 +1,8 @@
-/* eslint-disable react-hooks/static-components */
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-  Home,
-  Dumbbell,
-  Droplets,
-  Camera,
-  MessageCircle,
-  Calendar,
-  Clock,
-  TrendingUp,
   User,
-  Settings,
-  LogOut,
   Menu,
-  X,
-  Play,
-  Plus,
-  ChevronRight,
+  X
 } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import HomeComponent from "../components/modules/HomeComponent";
@@ -25,14 +11,19 @@ import Chatbot from "@/components/modules/Chatbot";
 import { useRouter } from "next/router";
 import Hydration from "@/components/modules/Hydration";
 import Workout from "@/components/modules/Workout";
+import { getFirstName } from "@/utils/functions";
 
 
 export default function WorkoutDashboard() {
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [firstName, setFirstName] = useState('');
 
-
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFirstName(getFirstName());
+  }, [firstName]);
   return (
     <div className="min-h-screen bg-linear-to-br from-blue-50 to-cyan-50">
       <Sidebar sidebarOpen={sidebarOpen} activeTab={activeTab} setSidebarOpen={setSidebarOpen} setActiveTab={setActiveTab} />
@@ -50,7 +41,7 @@ export default function WorkoutDashboard() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-3xl font-bold text-gray-800">
-              Welcome back, Alex!
+              Welcome back, {firstName}
             </h2>
             <p className="text-gray-500 mt-1">
               Lets crush your fitness goals today 💪
