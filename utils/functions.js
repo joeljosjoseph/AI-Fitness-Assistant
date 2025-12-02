@@ -81,13 +81,16 @@ export const processLine = (line, idx) => {
 };
 
 export const getUserDetails = async (data) => {
-    console.log(data.user.id);
+    // console.log(data.user.id);
 
-    const userRes = await fetch(`/api/users/me?userId=${data.user.id}`);
+    const userRes = await fetch(`/api/users/me?userId=${data.user?.id}`);
     const userData = await userRes.json();
     console.log(userData);
 
-    if (!userRes.ok) throw new Error(userData.error);
+    if (!userRes.ok) {
+        console.log(userData.error);
+
+    }
 
     return userData
 }
@@ -99,7 +102,7 @@ export const getFirstName = () => {
         if (!userStr) return '';
 
         try {
-            const user = JSON.parse(userStr);
+            const user = userStr || JSON.parse(userStr);
             const fullName = user?.login?.fullName || '';
             return fullName.split(' ')[0]; // Return first name
         } catch (err) {
@@ -109,3 +112,23 @@ export const getFirstName = () => {
     }
     return '';
 };
+
+export const createProfileSummary = (p) => `
+User Profile:
+
+PERSONAL DETAILS:
+- Age: ${p.age}
+- Gender: ${p.gender}
+- Height: ${p.height}
+- Weight: ${p.weight}
+
+FITNESS INFORMATION:
+- Fitness Goal: ${p.goal}
+- Fitness Level: ${p.level}
+- Available Days: ${p.days_per_week} days per week
+- Time Per Workout: ${p.time_per_workout} minutes
+- Equipment: ${p.equipment}
+- Limitations: ${p.limitations}
+
+Based on this profile, create a detailed personalized workout plan with specific exercises, sets, reps, and rest times.
+`;

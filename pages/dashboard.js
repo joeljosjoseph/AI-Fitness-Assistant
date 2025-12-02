@@ -11,7 +11,7 @@ import Chatbot from "@/components/modules/Chatbot";
 import { useRouter } from "next/router";
 import Hydration from "@/components/modules/Hydration";
 import Workout from "@/components/modules/Workout";
-import { getFirstName } from "@/utils/functions";
+import { getFirstName, getUserDetails } from "@/utils/functions";
 
 
 export default function WorkoutDashboard() {
@@ -24,6 +24,15 @@ export default function WorkoutDashboard() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFirstName(getFirstName());
   }, [firstName]);
+
+  useEffect(() => {
+    let data = localStorage.getItem("user");
+    let userData = getUserDetails(data)
+
+    // Store in localStorage
+    localStorage.setItem("user", JSON.stringify(userData.user));
+    console.log("User stored in localStorage:", userData.user);
+  }, [])
   return (
     <div className="min-h-screen bg-linear-to-br from-blue-50 to-cyan-50">
       <Sidebar sidebarOpen={sidebarOpen} activeTab={activeTab} setSidebarOpen={setSidebarOpen} setActiveTab={setActiveTab} />
@@ -41,7 +50,7 @@ export default function WorkoutDashboard() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-3xl font-bold text-gray-800">
-              Welcome back, {firstName}
+              Welcome , {firstName}
             </h2>
             <p className="text-gray-500 mt-1">
               Lets crush your fitness goals today 💪

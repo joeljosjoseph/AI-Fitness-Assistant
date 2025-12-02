@@ -47,6 +47,7 @@ export default function AuthPage() {
           console.log(data.error)
         } else {
           console.log("Login successful:", data.user);
+
           // redirect to dashboard
           toast.success("Login successful!!!")
           // Fetch full user info
@@ -99,11 +100,11 @@ export default function AuthPage() {
         } else {
           console.log("Signup successful:", data.user);
 
-          let userData = getUserDetails(data)
+          // let userData = getUserDetails(data)
 
-          // Store in localStorage
-          localStorage.setItem("user", JSON.stringify(userData.user));
-          console.log("User stored in localStorage:", userData.user);
+          // // Store in localStorage
+          // localStorage.setItem("user", JSON.stringify(userData.user));
+          // console.log("User stored in localStorage:", userData.user);
 
           // redirect to dashboard
           toast.success("Sign up successful!!!")
