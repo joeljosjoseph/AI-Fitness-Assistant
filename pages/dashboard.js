@@ -11,31 +11,78 @@ import Chatbot from "@/components/modules/Chatbot";
 import { useRouter } from "next/router";
 import Hydration from "@/components/modules/Hydration";
 import Workout from "@/components/modules/Workout";
-import { getFirstName, getUserDetails } from "@/utils/functions";
-
 
 export default function WorkoutDashboard() {
-  const router = useRouter()
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [firstName, setFirstName] = useState('');
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setFirstName(getFirstName());
-  }, [firstName]);
+    const fetchUserData = async () => {
+      try {
+        const storedUser = localStorage.getItem("user");
 
-  useEffect(() => {
-    let data = localStorage.getItem("user");
-    let userData = getUserDetails(data)
+        // Check if user data exists and is valid
+        if (!storedUser || storedUser === 'undefined' || storedUser === 'null') {
+          console.error('No valid user data found');
+          router.push('/');
+          return;
+        }
 
-    // Store in localStorage
-    localStorage.setItem("user", JSON.stringify(userData.user));
-    console.log("User stored in localStorage:", userData.user);
-  }, [])
+        try {
+          const userData = JSON.parse(storedUser);
+
+          if (!userData || !userData._id) {
+            console.error('Invalid user data structure');
+            router.push('/');
+            return;
+          }
+
+          setUser(userData);
+          setFirstName(userData?.login?.fullName?.split(" ")[0] || "User");
+
+          // Optionally fetch fresh data from API
+          const res = await fetch(`/api/users/me?userId=${userData._id}`);
+          const data = await res.json();
+
+          if (data.success && data.user) {
+            setUser(data.user);
+            localStorage.setItem("user", JSON.stringify(data.user));
+            setFirstName(data.user?.login?.fullName?.split(" ")[0] || "User");
+          }
+        } catch (parseError) {
+          console.error('Error parsing user data:', parseError);
+          localStorage.removeItem('user');
+          router.push('/');
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        router.push('/');
+      }
+    };
+
+    fetchUserData();
+  }, [router]);
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-linear-to-br from-blue-50 to-cyan-50">
-      <Sidebar sidebarOpen={sidebarOpen} activeTab={activeTab} setSidebarOpen={setSidebarOpen} setActiveTab={setActiveTab} />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
+      <Sidebar
+        sidebarOpen={sidebarOpen}
+        activeTab={activeTab}
+        setSidebarOpen={setSidebarOpen}
+        setActiveTab={setActiveTab}
+      />
+
       {/* Mobile Menu Button */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -50,13 +97,16 @@ export default function WorkoutDashboard() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-3xl font-bold text-gray-800">
-              Welcome , {firstName}
+              Welcome, {firstName}
             </h2>
             <p className="text-gray-500 mt-1">
-              Lets crush your fitness goals today 💪
+              Let&apos;s crush your fitness goals today 💪
             </p>
           </div>
-          <button onClick={() => router.push("/profile")} className="w-12 h-12 rounded-full bg-linear-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white font-semibold shadow-lg  cursor-pointer">
+          <button
+            onClick={() => router.push("/profile")}
+            className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white font-semibold shadow-lg cursor-pointer hover:shadow-xl transition-all"
+          >
             <User className="w-6 h-6" />
           </button>
         </div>
@@ -66,7 +116,7 @@ export default function WorkoutDashboard() {
           <HomeComponent setActiveTab={setActiveTab} />
         )}
 
-        {/* Hydration Content */}
+        {/* Workouts Content */}
         {activeTab === "workouts" && (
           <Workout />
         )}

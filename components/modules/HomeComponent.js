@@ -3,16 +3,61 @@ import { Camera, ChevronRight, Clock, Droplets, Dumbbell, MessageCircle, Play, T
 
 const HomeComponent = ({ setActiveTab }) => {
     const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const storedUser = localStorage.getItem('user');
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setUser(storedUser);
+        const fetchUserData = async () => {
+            try {
+                const storedUser = localStorage.getItem('user');
+
+                // Check if storedUser exists and is valid JSON
+                if (storedUser && storedUser !== 'undefined' && storedUser !== 'null') {
+                    try {
+                        const parsedUser = JSON.parse(storedUser);
+                        setUser(parsedUser);
+
+                        // Optionally fetch fresh data from API
+                        if (parsedUser._id) {
+                            const res = await fetch(`/api/users/me?userId=${parsedUser._id}`);
+                            const data = await res.json();
+                            if (data.success) {
+                                setUser(data.user);
+                                localStorage.setItem('user', JSON.stringify(data.user));
+                            }
+                        }
+                    } catch (parseError) {
+                        console.error('Error parsing user data:', parseError);
+                        // Clear invalid data
+                        localStorage.removeItem('user');
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchUserData();
     }, []);
 
-    if (!user) return null; // or a loader
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div>
+            </div>
+        );
+    }
 
-    const firstName = user?.login?.fullName?.split(" ")[0] || "";
+    if (!user) {
+        return (
+            <div className="bg-white rounded-2xl p-8 shadow-lg text-center">
+                <p className="text-gray-600">No user data found. Please log in.</p>
+            </div>
+        );
+    }
+
+    const firstName = user?.login?.fullName?.split(" ")[0] || "User";
 
     // Use user's progress and schedule to populate cards
     const weeklyStats = {
@@ -91,7 +136,8 @@ const HomeComponent = ({ setActiveTab }) => {
                         {todayWorkouts.map((workout, idx) => (
                             <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
                                 <div className="flex items-center space-x-4">
-                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${workout.completed ? "bg-green-100 text-green-500" : "bg-gray-200 text-gray-400"}`}>
+                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${workout.completed ? "bg-green-100 text-green-500" : "bg-gray-200 text-gray-400"
+                                        }`}>
                                         {workout.completed ? "✓" : <Play className="w-4 h-4" />}
                                     </div>
                                     <div>
@@ -155,12 +201,18 @@ const HomeComponent = ({ setActiveTab }) => {
 
             {/* Quick Actions */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <button onClick={() => setActiveTab("camera")} className="bg-linear-to-br from-purple-500 to-pink-500 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all">
+                <button
+                    onClick={() => setActiveTab("camera")}
+                    className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all"
+                >
                     <Camera className="w-8 h-8 mb-3" />
                     <h3 className="text-xl font-bold mb-2">Track Your Posture</h3>
                 </button>
 
-                <button onClick={() => setActiveTab("chat")} className="bg-linear-to-br from-green-500 to-teal-500 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all">
+                <button
+                    onClick={() => setActiveTab("chat")}
+                    className="bg-gradient-to-br from-green-500 to-teal-500 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all"
+                >
                     <MessageCircle className="w-8 h-8 mb-3" />
                     <h3 className="text-xl font-bold mb-2">AI Workout Assistant</h3>
                 </button>

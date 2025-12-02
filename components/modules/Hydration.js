@@ -2,17 +2,49 @@ import React, { useState, useEffect } from 'react'
 
 const Hydration = () => {
     const [waterIntake, setWaterIntake] = useState(0)
-    const [dailyGoal, setDailyGoal] = useState(2500) // ml
+    const [dailyGoal, setDailyGoal] = useState(2500)
     const [lastDrinkTime, setLastDrinkTime] = useState(null)
     const [notifications, setNotifications] = useState(true)
     const [workoutIntensity, setWorkoutIntensity] = useState('moderate')
+    const [userId, setUserId] = useState(null)
+
+    // Get user ID from localStorage
+    useEffect(() => {
+        const user = JSON.parse(localStorage.getItem('user'))
+        if (user && user._id) {
+            setUserId(user._id)
+        }
+    }, [])
+
+    // Fetch hydration data from API
+    useEffect(() => {
+        const fetchHydrationData = async () => {
+            if (!userId) return
+
+            try {
+                const res = await fetch(`/api/hydration?userId=${userId}`)
+                const data = await res.json()
+
+                if (data.success && data.hydration) {
+                    setWaterIntake(data.hydration.currentProgress || 0)
+                    setDailyGoal(data.hydration.dailyGoal || 2500)
+                    setWorkoutIntensity(data.hydration.workoutIntensity || 'moderate')
+                    setNotifications(data.hydration.reminder || false)
+                }
+            } catch (error) {
+                console.error('Error fetching hydration data:', error)
+            }
+        }
+
+        fetchHydrationData()
+    }, [userId])
 
     // Calculate recommended interval based on workout intensity
     const getRecommendedInterval = () => {
         const intervals = {
-            light: 60,      // 60 minutes
-            moderate: 45,   // 45 minutes
-            intense: 30     // 30 minutes
+            light: 60,
+            moderate: 45,
+            intense: 30
         }
         return intervals[workoutIntensity] || 45
     }
@@ -23,10 +55,9 @@ const Hydration = () => {
 
         const interval = setInterval(() => {
             const now = Date.now()
-            const timeSinceLastDrink = (now - lastDrinkTime) / 1000 / 60 // minutes
-            const recommendedInterval = getRecommendedInterval()
+            const timeSinceLastDrink = (now - lastDrinkTime) / 1000 / 60
 
-            if (timeSinceLastDrink >= recommendedInterval && waterIntake < dailyGoal) {
+            if (timeSinceLastDrink >= getRecommendedInterval() && waterIntake < dailyGoal) {
                 if (Notification.permission === 'granted') {
                     new Notification('Time to Hydrate! 💧', {
                         body: `It's been ${Math.round(timeSinceLastDrink)} minutes. Drink some water!`,
@@ -34,27 +65,98 @@ const Hydration = () => {
                     })
                 }
             }
-        }, 60000) // Check every minute
+        }, 60000)
 
         return () => clearInterval(interval)
-    }, [lastDrinkTime, notifications, waterIntake, dailyGoal, workoutIntensity, getRecommendedInterval])
+    }, [lastDrinkTime, notifications, waterIntake, dailyGoal, workoutIntensity])
 
-    // Request notification permission
+    // Update hydration data in backend
+    const updateHydrationData = async (updatedData) => {
+        if (!userId) return
+
+        try {
+            const res = await fetch('/api/hydration', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId,
+                    updateData: updatedData
+                })
+            })
+
+            const data = await res.json()
+            if (data.success) {
+                // Update localStorage
+                const user = JSON.parse(localStorage.getItem('user'))
+                user.hydration = data.hydration
+                localStorage.setItem('user', JSON.stringify(user))
+            }
+        } catch (error) {
+            console.error('Error updating hydration:', error)
+        }
+    }
+
     const requestNotificationPermission = () => {
         if ('Notification' in window && Notification.permission === 'default') {
             Notification.requestPermission()
         }
     }
 
-    const addWater = (amount) => {
+    const addWater = async (amount) => {
         const newIntake = Math.min(waterIntake + amount, dailyGoal)
         setWaterIntake(newIntake)
-        setLastDrinkTime(Date.now)
+        // eslint-disable-next-line react-hooks/purity
+        setLastDrinkTime(Date.now())
+
+        await updateHydrationData({
+            currentProgress: newIntake,
+            dailyGoal,
+            workoutIntensity,
+            notificationInterval: getRecommendedInterval(),
+            reminder: notifications
+        })
     }
 
-    const resetDaily = () => {
+    const resetDaily = async () => {
         setWaterIntake(0)
         setLastDrinkTime(null)
+
+        await updateHydrationData({
+            currentProgress: 0,
+            dailyGoal,
+            workoutIntensity,
+            notificationInterval: getRecommendedInterval(),
+            reminder: notifications
+        })
+    }
+
+    const handleIntensityChange = async (intensity) => {
+        setWorkoutIntensity(intensity)
+
+        await updateHydrationData({
+            currentProgress: waterIntake,
+            dailyGoal,
+            workoutIntensity: intensity,
+            notificationInterval: getRecommendedInterval(),
+            reminder: notifications
+        })
+    }
+
+    const handleNotificationToggle = async () => {
+        const newNotificationState = !notifications
+        setNotifications(newNotificationState)
+
+        if (newNotificationState) {
+            requestNotificationPermission()
+        }
+
+        await updateHydrationData({
+            currentProgress: waterIntake,
+            dailyGoal,
+            workoutIntensity,
+            notificationInterval: getRecommendedInterval(),
+            reminder: newNotificationState
+        })
     }
 
     const progress = (waterIntake / dailyGoal) * 100
@@ -125,7 +227,7 @@ const Hydration = () => {
                         <label className="text-xs text-gray-600 mb-2 block">Workout Intensity</label>
                         <select
                             value={workoutIntensity}
-                            onChange={(e) => setWorkoutIntensity(e.target.value)}
+                            onChange={(e) => handleIntensityChange(e.target.value)}
                             className="w-full px-3 py-2 border border-cyan-200 rounded-lg text-sm bg-white"
                         >
                             <option value="light">Light (Walking, Yoga)</option>
@@ -156,10 +258,7 @@ const Hydration = () => {
                     </div>
                 </div>
                 <button
-                    onClick={() => {
-                        setNotifications(!notifications)
-                        if (!notifications) requestNotificationPermission()
-                    }}
+                    onClick={handleNotificationToggle}
                     className={`relative w-12 h-6 rounded-full transition-colors ${notifications ? 'bg-cyan-500' : 'bg-gray-300'
                         }`}
                 >
