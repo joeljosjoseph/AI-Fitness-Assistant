@@ -22,7 +22,7 @@ const PostureCam = () => {
     const [error, setError] = useState('');
     const intervalRef = useRef(null);
 
-    const API_URL = process.env.POSTURE_API; // Change this to your FastAPI server URL
+    const API_URL = process.env.NEXT_POSTURE_API; // Change this to your FastAPI server URL
 
     const workouts = [
         'Push Up', 'Pull Up', 'Squat', 'Lunge', 'Biceps Curl',
