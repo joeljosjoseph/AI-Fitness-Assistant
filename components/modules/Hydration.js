@@ -1,175 +1,159 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from "react";
+import { inferHydrationDecision } from "@/utils/HydrationModel";
 
-const STORAGE_KEY = 'hydration_history_dataset' // local dataset key
+const STORAGE_KEY = "hydration_history_dataset"; // local dataset key
 
 // Format date as YYYY-MM-DD
-const getDayKey = (d = new Date()) => d.toISOString().slice(0, 10)
+const getDayKey = (d = new Date()) => d.toISOString().slice(0, 10);
 
-// Base interval based only on workout intensity
+// Base interval based only on workout intensity (used as fallback)
 const getBaseInterval = (intensity) => {
     const intervals = {
         light: 60, // minutes
         moderate: 45,
         intense: 30,
-    }
-    return intervals[intensity] || 45
-}
+    };
+    return intervals[intensity] || 45;
+};
 
 const Hydration = () => {
-    const [waterIntake, setWaterIntake] = useState(0)
-    const [dailyGoal, setDailyGoal] = useState(2500) // ml
-    const [lastDrinkTime, setLastDrinkTime] = useState(null)
-    const [notifications, setNotifications] = useState(true)
-    const [workoutIntensity, setWorkoutIntensity] = useState('moderate')
+    const [waterIntake, setWaterIntake] = useState(0);
+    const [dailyGoal, setDailyGoal] = useState(2500); // ml
+    const [lastDrinkTime, setLastDrinkTime] = useState(null);
+    const [notifications, setNotifications] = useState(true);
+    const [workoutIntensity, setWorkoutIntensity] = useState("moderate");
 
     // local “dataset” – one entry per day
-    const [history, setHistory] = useState([])
-    const [aiTip, setAiTip] = useState('Stay hydrated throughout the day!')
+    const [history, setHistory] = useState([]);
+    const [aiTip, setAiTip] = useState("Stay hydrated throughout the day!");
 
     // Load history from localStorage on mount
     useEffect(() => {
-        if (typeof window === 'undefined') return
-        const raw = localStorage.getItem(STORAGE_KEY)
-        if (!raw) return
+        if (typeof window === "undefined") return;
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
 
         try {
-            const parsed = JSON.parse(raw)
-            setHistory(parsed)
+            const parsed = JSON.parse(raw);
+            setHistory(parsed);
 
-            const todayKey = getDayKey()
-            const today = parsed.find((d) => d.date === todayKey)
+            const todayKey = getDayKey();
+            const today = parsed.find((d) => d.date === todayKey);
             if (today) {
-                setWaterIntake(today.totalMl)
-                setDailyGoal(today.goalMl || 2500)
+                setWaterIntake(today.totalMl);
+                setDailyGoal(today.goalMl || 2500);
             }
         } catch {
             // ignore JSON errors
         }
-    }, [])
+    }, []);
 
     // Persist today into history whenever intake/goal changes
     useEffect(() => {
-        if (typeof window === 'undefined') return
+        if (typeof window === "undefined") return;
 
-        const todayKey = getDayKey()
+        const todayKey = getDayKey();
         setHistory((prev) => {
-            const copy = [...prev]
-            const idx = copy.findIndex((d) => d.date === todayKey)
+            const copy = [...prev];
+            const idx = copy.findIndex((d) => d.date === todayKey);
             const todayEntry = {
                 date: todayKey,
                 totalMl: waterIntake,
                 goalMl: dailyGoal,
-            }
-            if (idx === -1) copy.push(todayEntry)
-            else copy[idx] = todayEntry
+            };
+            if (idx === -1) copy.push(todayEntry);
+            else copy[idx] = todayEntry;
 
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(copy))
-            return copy
-        })
-    }, [waterIntake, dailyGoal])
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(copy));
+            return copy;
+        });
+    }, [waterIntake, dailyGoal]);
 
-    // Simple “AI”: use last 7 days to adapt reminder interval + generate tip
+    // 🔥 AI PART: use last 7 days + TRAINED MODEL to adapt interval and tip
     const { adaptiveInterval, adherencePercent, tipText } = useMemo(() => {
         if (!history.length) {
+            // no history yet → fall back to base intensity interval + generic tip
             return {
                 adaptiveInterval: getBaseInterval(workoutIntensity),
                 adherencePercent: null,
-                tipText: 'Start logging your water intake to get personalized tips.',
-            }
+                tipText: "Start logging your water intake to get personalized tips.",
+            };
         }
 
         const last7 = history
             .slice()
             .sort((a, b) => (a.date > b.date ? 1 : -1))
-            .slice(-7)
+            .slice(-7);
 
         const percents = last7.map((d) =>
             d.goalMl ? (d.totalMl / d.goalMl) * 100 : 0
-        )
+        );
         const avgPercent =
-            percents.reduce((sum, p) => sum + p, 0) / (percents.length || 1)
+            percents.reduce((sum, p) => sum + p, 0) / (percents.length || 1);
 
-        let base = getBaseInterval(workoutIntensity)
-        let interval = base
-
-        // adapt interval based on adherence
-        if (avgPercent < 60) {
-            interval = Math.max(30, base - 15) // more frequent
-        } else if (avgPercent > 110) {
-            interval = Math.min(120, base + 15) // less frequent
-        }
-
-        let tip = ''
-        if (avgPercent < 60) {
-            tip =
-                'You usually don’t reach your water goal. Try drinking a small glass every time you check your phone.'
-        } else if (avgPercent < 100) {
-            tip =
-                'You are close to your water goal most days. One extra cup in the afternoon could help you hit 100%.'
-        } else {
-            tip =
-                'You regularly meet your water goal. Great job! Keep your current routine going.'
-        }
+        // 👉 Ask the TRAINED MODEL what to do
+        const decision = inferHydrationDecision(avgPercent, workoutIntensity);
 
         return {
-            adaptiveInterval: interval,
+            adaptiveInterval: decision.interval,
             adherencePercent: avgPercent,
-            tipText: tip,
-        }
-    }, [history, workoutIntensity])
+            tipText: decision.tipText,
+        };
+    }, [history, workoutIntensity]);
 
+    // keep aiTip state in sync with AI text
     useEffect(() => {
-        setAiTip(tipText)
-    }, [tipText])
+        setAiTip(tipText);
+    }, [tipText]);
 
-    // Check if it's time to drink water (uses adaptiveInterval)
+    // Check if it's time to drink water (uses adaptiveInterval from the model)
     useEffect(() => {
-        if (!notifications || !lastDrinkTime) return
-        if (typeof window === 'undefined' || !('Notification' in window)) return
+        if (!notifications || !lastDrinkTime) return;
+        if (typeof window === "undefined" || !("Notification" in window)) return;
 
         const interval = setInterval(() => {
-            const now = Date.now()
-            const timeSinceLastDrink = (now - lastDrinkTime) / 1000 / 60 // minutes
+            const now = Date.now();
+            const timeSinceLastDrink = (now - lastDrinkTime) / 1000 / 60; // minutes
 
             if (
                 timeSinceLastDrink >= adaptiveInterval &&
                 waterIntake < dailyGoal &&
-                Notification.permission === 'granted'
+                Notification.permission === "granted"
             ) {
-                new Notification('Time to Hydrate! 💧', {
+                new Notification("Time to Hydrate! 💧", {
                     body: `It's been ${Math.round(
                         timeSinceLastDrink
                     )} minutes. Drink some water!`,
-                })
+                });
             }
-        }, 60000) // check every minute
+        }, 60000); // check every minute
 
-        return () => clearInterval(interval)
-    }, [lastDrinkTime, notifications, waterIntake, dailyGoal, adaptiveInterval])
+        return () => clearInterval(interval);
+    }, [lastDrinkTime, notifications, waterIntake, dailyGoal, adaptiveInterval]);
 
     // Request notification permission
     const requestNotificationPermission = () => {
-        if (typeof window === 'undefined') return
-        if ('Notification' in window && Notification.permission === 'default') {
-            Notification.requestPermission()
+        if (typeof window === "undefined") return;
+        if ("Notification" in window && Notification.permission === "default") {
+            Notification.requestPermission();
         }
-    }
+    };
 
     const addWater = (amount) => {
-        const newIntake = Math.min(waterIntake + amount, dailyGoal)
-        setWaterIntake(newIntake)
+        const newIntake = Math.min(waterIntake + amount, dailyGoal);
+        setWaterIntake(newIntake);
         // eslint-disable-next-line react-hooks/purity
-        setLastDrinkTime(Date.now()) // ✅ FIX: call Date.now()
-    }
+        setLastDrinkTime(Date.now()); // make sure it's Date.now()
+    };
 
     const resetDaily = () => {
-        setWaterIntake(0)
-        setLastDrinkTime(null)
-    }
+        setWaterIntake(0);
+        setLastDrinkTime(null);
+    };
 
-    const progress = (waterIntake / dailyGoal) * 100
-    const cupsConsumed = Math.floor(waterIntake / 250)
-    const cupsRemaining = Math.ceil((dailyGoal - waterIntake) / 250)
+    const progress = (waterIntake / dailyGoal) * 100;
+    const cupsConsumed = Math.floor(waterIntake / 250);
+    const cupsRemaining = Math.ceil((dailyGoal - waterIntake) / 250);
 
     return (
         <div className="bg-white rounded-2xl p-8 shadow-lg">
@@ -200,7 +184,6 @@ const Hydration = () => {
                         className="bg-gradient-to-r from-cyan-400 to-blue-500 h-4 rounded-full transition-all duration-500"
                         style={{ width: `${Math.min(progress, 100)}%` }}
                     />
-
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
                     {cupsConsumed} cups consumed • {cupsRemaining} cups remaining
@@ -212,10 +195,10 @@ const Hydration = () => {
                 <h4 className="text-sm font-semibold text-gray-700 mb-3">Quick Add</h4>
                 <div className="grid grid-cols-4 gap-3">
                     {[
-                        { amount: 250, label: '1 Cup', icon: '🥤' },
-                        { amount: 500, label: '2 Cups', icon: '🥤🥤' },
-                        { amount: 750, label: '3 Cups', icon: '🧃' },
-                        { amount: 1000, label: '1 Liter', icon: '💧' },
+                        { amount: 250, label: "1 Cup", icon: "🥤" },
+                        { amount: 500, label: "2 Cups", icon: "🥤🥤" },
+                        { amount: 750, label: "3 Cups", icon: "🧃" },
+                        { amount: 1000, label: "1 Liter", icon: "💧" },
                     ].map((option) => (
                         <button
                             key={option.amount}
@@ -245,7 +228,7 @@ const Hydration = () => {
                         <select
                             value={workoutIntensity}
                             onChange={(e) => setWorkoutIntensity(e.target.value)}
-                            className="w-full px-3 py-2 border border-cyan-200 rounded-lg text-sm bg-white"
+                            className="w-full px-3 py-2 border text-gray-400 border-cyan-200 rounded-lg text-sm bg-white"
                         >
                             <option value="light">Light (Walking, Yoga)</option>
                             <option value="moderate">Moderate (Jogging, Cycling)</option>
@@ -263,7 +246,7 @@ const Hydration = () => {
                         </div>
                         {adherencePercent != null && (
                             <p className="text-xs text-gray-500 mt-1">
-                                Avg. goal completion (last 7 days):{' '}
+                                Avg. goal completion (last 7 days):{" "}
                                 {adherencePercent.toFixed(0)}%
                             </p>
                         )}
@@ -286,15 +269,15 @@ const Hydration = () => {
                 </div>
                 <button
                     onClick={() => {
-                        const next = !notifications
-                        setNotifications(next)
-                        if (next) requestNotificationPermission()
+                        const next = !notifications;
+                        setNotifications(next);
+                        if (next) requestNotificationPermission();
                     }}
-                    className={`relative w-12 h-6 rounded-full transition-colors ${notifications ? 'bg-cyan-500' : 'bg-gray-300'
+                    className={`relative w-12 h-6 rounded-full transition-colors ${notifications ? "bg-cyan-500" : "bg-gray-300"
                         }`}
                 >
                     <div
-                        className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${notifications ? 'translate-x-6' : 'translate-x-0'
+                        className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${notifications ? "translate-x-6" : "translate-x-0"
                             }`}
                     />
                 </button>
@@ -327,7 +310,7 @@ const Hydration = () => {
                 </div>
             )}
         </div>
-    )
-}
+    );
+};
 
-export default Hydration
+export default Hydration;
