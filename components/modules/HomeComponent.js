@@ -4,19 +4,25 @@ import { Camera, ChevronRight, Clock, Droplets, Dumbbell, MessageCircle, Play, T
 const HomeComponent = ({ setActiveTab }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [hydrationData, setHydrationData] = useState({
+        consumed: 0,
+        target: 2500,
+        percentage: 0,
+    });
+
+    // Helper function to get today's date key (YYYY-MM-DD)
+    const getDayKey = (d = new Date()) => d.toISOString().slice(0, 10);
 
     useEffect(() => {
         const fetchUserData = async () => {
             try {
                 const storedUser = localStorage.getItem('user');
 
-                // Check if storedUser exists and is valid JSON
                 if (storedUser && storedUser !== 'undefined' && storedUser !== 'null') {
                     try {
                         const parsedUser = JSON.parse(storedUser);
                         setUser(parsedUser);
 
-                        // Optionally fetch fresh data from API
                         if (parsedUser._id) {
                             const res = await fetch(`/api/users/me?userId=${parsedUser._id}`);
                             const data = await res.json();
@@ -27,7 +33,6 @@ const HomeComponent = ({ setActiveTab }) => {
                         }
                     } catch (parseError) {
                         console.error('Error parsing user data:', parseError);
-                        // Clear invalid data
                         localStorage.removeItem('user');
                     }
                 }
@@ -39,6 +44,48 @@ const HomeComponent = ({ setActiveTab }) => {
         };
 
         fetchUserData();
+    }, []);
+
+    // Load hydration data from localStorage
+    useEffect(() => {
+        const loadHydrationData = () => {
+            try {
+                const hydrationHistory = localStorage.getItem('hydration_history_dataset');
+                if (hydrationHistory) {
+                    const parsed = JSON.parse(hydrationHistory);
+                    const todayKey = getDayKey();
+                    const todayData = parsed.find((d) => d.date === todayKey);
+
+                    if (todayData) {
+                        const percentage = todayData.goalMl
+                            ? Math.round((todayData.totalMl / todayData.goalMl) * 100)
+                            : 0;
+
+                        setHydrationData({
+                            consumed: todayData.totalMl || 0,
+                            target: todayData.goalMl || 2500,
+                            percentage: percentage,
+                        });
+                    } else {
+                        // No data for today, use defaults
+                        setHydrationData({
+                            consumed: 0,
+                            target: 2500,
+                            percentage: 0,
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading hydration data:', error);
+            }
+        };
+
+        loadHydrationData();
+
+        // Set up an interval to check for updates every 10 seconds
+        const interval = setInterval(loadHydrationData, 10000);
+
+        return () => clearInterval(interval);
     }, []);
 
     if (loading) {
@@ -59,28 +106,17 @@ const HomeComponent = ({ setActiveTab }) => {
 
     const firstName = user?.login?.fullName?.split(" ")[0] || "User";
 
-    // Use user's progress and schedule to populate cards
     const weeklyStats = {
         workouts: user?.progress?.workoutsCompleted || 0,
         totalTime: (user?.schedule?.workoutDaysPerWeek || 0) * (user?.schedule?.timePerWorkout || 0),
         calories: user?.progress?.caloriesBurned || 0,
     };
 
-    // Example: Today's workouts (you can enhance to store per day)
     const todayWorkouts = [
         { name: "Push-ups", sets: 3, reps: 15, completed: true },
         { name: "Squats", sets: 4, reps: 20, completed: true },
         { name: "Plank", duration: "2 min", completed: false },
     ];
-
-    // Hydration card
-    const hydrationData = {
-        consumed: user?.hydration?.currentProgress || 0,
-        target: user?.hydration?.dailyGoal || 2000,
-        percentage: user?.hydration?.dailyGoal
-            ? Math.round((user.hydration.currentProgress / user.hydration.dailyGoal) * 100)
-            : 0,
-    };
 
     return (
         <div className="space-y-6">
@@ -154,7 +190,7 @@ const HomeComponent = ({ setActiveTab }) => {
                     </div>
                 </div>
 
-                {/* Hydration */}
+                {/* Hydration - Updated to read from localStorage */}
                 <div className="bg-white rounded-2xl p-6 shadow-lg">
                     <div className="flex items-center justify-between mb-6">
                         <h3 className="text-xl font-bold text-gray-800">Hydration Today</h3>
@@ -196,6 +232,14 @@ const HomeComponent = ({ setActiveTab }) => {
                             </p>
                         </div>
                     </div>
+
+                    {/* Quick action to go to hydration tracker */}
+                    <button
+                        onClick={() => setActiveTab("hydration")}
+                        className="w-full py-2 px-4 bg-cyan-50 hover:bg-cyan-100 text-cyan-600 rounded-lg text-sm font-medium transition-colors"
+                    >
+                        Update Hydration →
+                    </button>
                 </div>
             </div>
 
@@ -203,7 +247,7 @@ const HomeComponent = ({ setActiveTab }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <button
                     onClick={() => setActiveTab("camera")}
-                    className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all"
+                    className="bg-linear-to-br from-purple-500 to-pink-500 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all"
                 >
                     <Camera className="w-8 h-8 mb-3" />
                     <h3 className="text-xl font-bold mb-2">Track Your Posture</h3>
@@ -211,7 +255,7 @@ const HomeComponent = ({ setActiveTab }) => {
 
                 <button
                     onClick={() => setActiveTab("chat")}
-                    className="bg-gradient-to-br from-green-500 to-teal-500 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all"
+                    className="bg-linear-to-br from-green-500 to-teal-500 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all"
                 >
                     <MessageCircle className="w-8 h-8 mb-3" />
                     <h3 className="text-xl font-bold mb-2">AI Workout Assistant</h3>
