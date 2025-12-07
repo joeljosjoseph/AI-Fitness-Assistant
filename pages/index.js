@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Bell } from "lucide-react";
+import { Bell, Loader2 } from "lucide-react";
 import { useRouter } from "next/router";
 import { Bounce, ToastContainer, toast } from 'react-toastify';
 
 export default function AuthPage() {
   const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -17,6 +18,7 @@ export default function AuthPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
 
     try {
       if (isLogin) {
@@ -45,6 +47,7 @@ export default function AuthPage() {
             transition: Bounce,
           });
           console.error("Login error:", data.error);
+          setIsLoading(false);
           return;
         }
 
@@ -67,13 +70,16 @@ export default function AuthPage() {
             } else {
               console.error("Failed to fetch user details");
               toast.error("Failed to load user data");
+              setIsLoading(false);
             }
           } catch (fetchError) {
             console.error("Error fetching user details:", fetchError);
             toast.error("Error loading user data");
+            setIsLoading(false);
           }
         } else {
           toast.error("Invalid login response");
+          setIsLoading(false);
         }
 
       } else {
@@ -87,6 +93,7 @@ export default function AuthPage() {
             theme: "light",
             transition: Bounce,
           });
+          setIsLoading(false);
           return;
         }
 
@@ -129,6 +136,7 @@ export default function AuthPage() {
             transition: Bounce,
           });
           console.error("Signup error:", data.error);
+          setIsLoading(false);
           return;
         }
 
@@ -140,11 +148,14 @@ export default function AuthPage() {
           localStorage.setItem("user", JSON.stringify(data.user));
           console.log("User data stored in localStorage:", data.user);
           setTimeout(() => router.push("/dashboard"), 500);
+        } else {
+          setIsLoading(false);
         }
       }
     } catch (err) {
       console.error("Authentication error:", err);
       toast.error(err.message || "An error occurred");
+      setIsLoading(false);
     }
   };
 
@@ -190,7 +201,8 @@ export default function AuthPage() {
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-xl border text-gray-700 border-gray-200 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 outline-none transition-all"
+                  disabled={isLoading}
+                  className="w-full px-4 py-3 rounded-xl border text-gray-700 border-gray-200 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 outline-none transition-all disabled:bg-gray-50 disabled:cursor-not-allowed"
                   placeholder="Enter your name"
                   required={!isLogin}
                 />
@@ -210,7 +222,8 @@ export default function AuthPage() {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                className="w-full px-4 py-3 rounded-xl border text-gray-700 border-gray-200 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 outline-none transition-all"
+                disabled={isLoading}
+                className="w-full px-4 py-3 rounded-xl border text-gray-700 border-gray-200 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 outline-none transition-all disabled:bg-gray-50 disabled:cursor-not-allowed"
                 placeholder="Enter your email"
                 required
               />
@@ -229,7 +242,8 @@ export default function AuthPage() {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                className="w-full px-4 py-3 rounded-xl border text-gray-700 border-gray-200 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 outline-none transition-all"
+                disabled={isLoading}
+                className="w-full px-4 py-3 rounded-xl border text-gray-700 border-gray-200 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 outline-none transition-all disabled:bg-gray-50 disabled:cursor-not-allowed"
                 placeholder="Enter your password"
                 required
               />
@@ -249,7 +263,8 @@ export default function AuthPage() {
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-xl border text-gray-700 border-gray-200 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 outline-none transition-all"
+                  disabled={isLoading}
+                  className="w-full px-4 py-3 rounded-xl border text-gray-700 border-gray-200 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 outline-none transition-all disabled:bg-gray-50 disabled:cursor-not-allowed"
                   placeholder="Confirm your password"
                   required={!isLogin}
                 />
@@ -261,7 +276,8 @@ export default function AuthPage() {
                 <label className="flex items-center">
                   <input
                     type="checkbox"
-                    className="w-4 h-4 rounded border-gray-300 text-cyan-500 focus:ring-cyan-400"
+                    disabled={isLoading}
+                    className="w-4 h-4 rounded border-gray-300 text-cyan-500 focus:ring-cyan-400 disabled:cursor-not-allowed"
                   />
                   <span className="ml-2 text-gray-600">Remember me</span>
                 </label>
@@ -276,9 +292,17 @@ export default function AuthPage() {
 
             <button
               type="submit"
-              className="w-full bg-gradient-to-r from-cyan-400 to-blue-500 text-white py-3 rounded-xl font-medium hover:from-cyan-500 hover:to-blue-600 transition-all shadow-md hover:shadow-lg"
+              disabled={isLoading}
+              className="w-full bg-gradient-to-r from-cyan-400 to-blue-500 text-white py-3 rounded-xl font-medium hover:from-cyan-500 hover:to-blue-600 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {isLogin ? "Sign In" : "Sign Up"}
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>{isLogin ? "Signing In..." : "Signing Up..."}</span>
+                </>
+              ) : (
+                <span>{isLogin ? "Sign In" : "Sign Up"}</span>
+              )}
             </button>
           </form>
 
@@ -296,7 +320,10 @@ export default function AuthPage() {
 
           {/* Social Login */}
           <div className="grid grid-cols-2 gap-3">
-            <button className="flex items-center justify-center px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">
+            <button
+              disabled={isLoading}
+              className="flex items-center justify-center px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path
                   fill="#4285F4"
@@ -319,7 +346,10 @@ export default function AuthPage() {
                 Google
               </span>
             </button>
-            <button className="flex items-center justify-center px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">
+            <button
+              disabled={isLoading}
+              className="flex items-center justify-center px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <svg className="w-5 h-5" fill="#1877F2" viewBox="0 0 24 24">
                 <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
               </svg>
@@ -338,7 +368,8 @@ export default function AuthPage() {
               <button
                 type="button"
                 onClick={() => setIsLogin(!isLogin)}
-                className="text-cyan-500 hover:text-cyan-600 font-medium"
+                disabled={isLoading}
+                className="text-cyan-500 hover:text-cyan-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLogin ? "Sign up" : "Sign in"}
               </button>
