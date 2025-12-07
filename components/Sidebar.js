@@ -70,12 +70,12 @@ const Sidebar = ({ activeTab, sidebarOpen, setActiveTab, setSidebarOpen }) => {
           label="Diet Planner"
           value="dietPlanner"
           active={activeTab === "dietPlanner"} />
-        <NavigationItem
+        {/* <NavigationItem
           icon={Calendar}
           label="Schedule"
           value="schedule"
           active={activeTab === "schedule"}
-        />
+        /> */}
       </nav>
 
       {/* Bottom Navigation */}

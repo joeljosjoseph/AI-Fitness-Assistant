@@ -174,7 +174,7 @@ const DietPlanner = () => {
 
     if (loadingUser) {
         return (
-            <div className="w-full min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 p-6">
+            <div className="w-full min-h-screen bg-linear-to-br from-blue-50 to-cyan-50 p-6">
                 <div className="max-w-6xl mx-auto">
                     <div className="bg-white rounded-2xl shadow-sm p-12 flex items-center justify-center">
                         <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
@@ -186,7 +186,7 @@ const DietPlanner = () => {
     }
 
     return (
-        <div className="w-full min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 p-6">
+        <div className="w-full min-h-screen bg-linear-to-br from-blue-50 to-cyan-50 p-6">
             <div className="max-w-6xl mx-auto">
                 {/* Header */}
                 <div className="mb-6">
@@ -205,7 +205,7 @@ const DietPlanner = () => {
                         {/* Gender and Goal */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                                <label className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                                     <User className="w-4 h-4" />
                                     Gender
                                 </label>
@@ -224,7 +224,7 @@ const DietPlanner = () => {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                                <label className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                                     <Target className="w-4 h-4" />
                                     Fitness Goal
                                 </label>
@@ -246,7 +246,7 @@ const DietPlanner = () => {
                         {/* Weight and Height */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                                <label className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                                     <Scale className="w-4 h-4" />
                                     Weight (kg)
                                 </label>
@@ -264,7 +264,7 @@ const DietPlanner = () => {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                                <label className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                                     <Ruler className="w-4 h-4" />
                                     Height (cm)
                                 </label>
@@ -325,21 +325,21 @@ const DietPlanner = () => {
                                 Your Health Metrics
                             </h3>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl">
+                                <div className="text-center p-4 bg-linear-to-br from-blue-50 to-cyan-50 rounded-xl">
                                     <div className="text-sm text-gray-600 mb-1">Gender</div>
                                     <div className="text-xl font-bold text-gray-800">{result.gender}</div>
                                 </div>
-                                <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl">
+                                <div className="text-center p-4 bg-linear-to-br from-blue-50 to-cyan-50 rounded-xl">
                                     <div className="text-sm text-gray-600 mb-1">Goal</div>
                                     <div className="text-lg font-bold text-gray-800">{result.goal}</div>
                                 </div>
-                                <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl">
+                                <div className="text-center p-4 bg-linear-to-br from-blue-50 to-cyan-50 rounded-xl">
                                     <div className="text-sm text-gray-600 mb-1">BMI</div>
                                     <div className={`text-2xl font-bold ${getBMIColor(result.bmi)}`}>
                                         {result.bmi}
                                     </div>
                                 </div>
-                                <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl">
+                                <div className="text-center p-4 bg-linear-to-br from-blue-50 to-cyan-50 rounded-xl">
                                     <div className="text-sm text-gray-600 mb-1">Category</div>
                                     <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getBMIBadge(result.bmi_category)}`}>
                                         {result.bmi_category}
@@ -356,7 +356,7 @@ const DietPlanner = () => {
                             </h3>
 
                             {/* Parse and display meal plan */}
-                            <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-6 border border-cyan-100">
+                            <div className="bg-linear-to-br from-blue-50 to-cyan-50 rounded-xl p-6 border border-cyan-100">
                                 <div className="space-y-3 text-gray-700">
                                     {result.meal_plan.split('|').map((section, idx) => {
                                         const trimmedSection = section.trim();
@@ -412,7 +412,7 @@ const DietPlanner = () => {
 
                             {/* Info Alert */}
                             <div className="mt-6 flex items-start gap-3 p-4 bg-cyan-50 border border-cyan-100 rounded-xl">
-                                <AlertCircle className="w-5 h-5 text-cyan-500 flex-shrink-0 mt-0.5" />
+                                <AlertCircle className="w-5 h-5 text-cyan-500 shrink-0 mt-0.5" />
                                 <div className="text-sm text-cyan-900">
                                     <p className="font-medium mb-1">Important Note:</p>
                                     <p>This meal plan is AI-generated and should be used as a general guide. Please consult with a registered dietitian or nutritionist for personalized nutrition advice tailored to your specific health needs and conditions.</p>
