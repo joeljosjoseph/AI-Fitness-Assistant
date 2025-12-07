@@ -10,9 +10,6 @@ const HomeComponent = ({ setActiveTab }) => {
         percentage: 0,
     });
 
-    // Helper function to get today's date key (YYYY-MM-DD)
-    const getDayKey = (d = new Date()) => d.toISOString().slice(0, 10);
-
     useEffect(() => {
         const fetchUserData = async () => {
             try {
@@ -23,12 +20,39 @@ const HomeComponent = ({ setActiveTab }) => {
                         const parsedUser = JSON.parse(storedUser);
                         setUser(parsedUser);
 
+                        // Set hydration data from user object directly
+                        if (parsedUser.hydration) {
+                            const consumed = parsedUser.hydration.currentProgress || 0;
+                            const target = parsedUser.hydration.dailyGoal || 2500;
+                            const percentage = target ? Math.round((consumed / target) * 100) : 0;
+
+                            setHydrationData({
+                                consumed,
+                                target,
+                                percentage,
+                            });
+                        }
+
+                        // Fetch latest data from API if user ID exists
                         if (parsedUser._id) {
                             const res = await fetch(`/api/users/me?userId=${parsedUser._id}`);
                             const data = await res.json();
-                            if (data.success) {
+                            if (data.success && data.user) {
                                 setUser(data.user);
                                 localStorage.setItem('user', JSON.stringify(data.user));
+
+                                // Update hydration data from API response
+                                if (data.user.hydration) {
+                                    const consumed = data.user.hydration.currentProgress || 0;
+                                    const target = data.user.hydration.dailyGoal || 2500;
+                                    const percentage = target ? Math.round((consumed / target) * 100) : 0;
+
+                                    setHydrationData({
+                                        consumed,
+                                        target,
+                                        percentage,
+                                    });
+                                }
                             }
                         }
                     } catch (parseError) {
@@ -46,46 +70,46 @@ const HomeComponent = ({ setActiveTab }) => {
         fetchUserData();
     }, []);
 
-    // Load hydration data from localStorage
+    // Refresh hydration data periodically from user object in localStorage
     useEffect(() => {
-        const loadHydrationData = () => {
+        const refreshHydrationData = () => {
             try {
-                const hydrationHistory = localStorage.getItem('hydration_history_dataset');
-                if (hydrationHistory) {
-                    const parsed = JSON.parse(hydrationHistory);
-                    const todayKey = getDayKey();
-                    const todayData = parsed.find((d) => d.date === todayKey);
-
-                    if (todayData) {
-                        const percentage = todayData.goalMl
-                            ? Math.round((todayData.totalMl / todayData.goalMl) * 100)
-                            : 0;
+                const storedUser = localStorage.getItem('user');
+                if (storedUser && storedUser !== 'undefined' && storedUser !== 'null') {
+                    const parsedUser = JSON.parse(storedUser);
+                    if (parsedUser.hydration) {
+                        const consumed = parsedUser.hydration.currentProgress || 0;
+                        const target = parsedUser.hydration.dailyGoal || 2500;
+                        const percentage = target ? Math.round((consumed / target) * 100) : 0;
 
                         setHydrationData({
-                            consumed: todayData.totalMl || 0,
-                            target: todayData.goalMl || 2500,
-                            percentage: percentage,
-                        });
-                    } else {
-                        // No data for today, use defaults
-                        setHydrationData({
-                            consumed: 0,
-                            target: 2500,
-                            percentage: 0,
+                            consumed,
+                            target,
+                            percentage,
                         });
                     }
                 }
             } catch (error) {
-                console.error('Error loading hydration data:', error);
+                console.error('Error refreshing hydration data:', error);
             }
         };
 
-        loadHydrationData();
+        // Refresh every 5 seconds to catch updates from the hydration tracker
+        const interval = setInterval(refreshHydrationData, 5000);
 
-        // Set up an interval to check for updates every 10 seconds
-        const interval = setInterval(loadHydrationData, 10000);
+        // Also listen for storage events (if user has multiple tabs open)
+        const handleStorageChange = (e) => {
+            if (e.key === 'user') {
+                refreshHydrationData();
+            }
+        };
 
-        return () => clearInterval(interval);
+        window.addEventListener('storage', handleStorageChange);
+
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('storage', handleStorageChange);
+        };
     }, []);
 
     if (loading) {
@@ -190,7 +214,7 @@ const HomeComponent = ({ setActiveTab }) => {
                     </div>
                 </div>
 
-                {/* Hydration - Updated to read from localStorage */}
+                {/* Hydration - Now reads from user.hydration in database */}
                 <div className="bg-white rounded-2xl p-6 shadow-lg">
                     <div className="flex items-center justify-between mb-6">
                         <h3 className="text-xl font-bold text-gray-800">Hydration Today</h3>
@@ -247,18 +271,20 @@ const HomeComponent = ({ setActiveTab }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <button
                     onClick={() => setActiveTab("camera")}
-                    className="bg-linear-to-br from-purple-500 to-pink-500 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all"
+                    className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all"
                 >
                     <Camera className="w-8 h-8 mb-3" />
                     <h3 className="text-xl font-bold mb-2">Track Your Posture</h3>
+                    <p className="text-purple-100 text-sm">Use AI to analyze your form</p>
                 </button>
 
                 <button
                     onClick={() => setActiveTab("chat")}
-                    className="bg-linear-to-br from-green-500 to-teal-500 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all"
+                    className="bg-gradient-to-br from-green-500 to-teal-500 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all"
                 >
                     <MessageCircle className="w-8 h-8 mb-3" />
                     <h3 className="text-xl font-bold mb-2">AI Workout Assistant</h3>
+                    <p className="text-green-100 text-sm">Get personalized advice</p>
                 </button>
             </div>
         </div>

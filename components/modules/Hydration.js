@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { inferHydrationDecision } from "@/utils/HydrationModel";
 
 const STORAGE_KEY = "hydration_history_dataset";
 
@@ -22,6 +21,17 @@ const goalMapping = {
     "Lose Weight": "Lose Weight",
     "Get Fit": "Get Fit",
     "Improve Endurance": "Improve Endurance"
+};
+
+// Simple decision logic for AI tips
+const inferHydrationDecision = (avgPercent, intensity) => {
+    if (avgPercent < 50) {
+        return { tipText: "You're falling behind! Try setting reminders and keeping water nearby." };
+    } else if (avgPercent < 80) {
+        return { tipText: "Good progress! Stay consistent with your hydration schedule." };
+    } else {
+        return { tipText: "Excellent hydration habits! Keep up the great work!" };
+    }
 };
 
 const Hydration = () => {
@@ -50,6 +60,8 @@ const Hydration = () => {
     // Weather data
     const [weatherData, setWeatherData] = useState(null);
     const [fetchingWeather, setFetchingWeather] = useState(false);
+    const [weatherError, setWeatherError] = useState(null);
+    const [locationData, setLocationData] = useState(null);
 
     // ML prediction result
     const [mlPrediction, setMlPrediction] = useState(null);
@@ -58,9 +70,116 @@ const Hydration = () => {
     const [history, setHistory] = useState([]);
     const [aiTip, setAiTip] = useState("Stay hydrated throughout the day!");
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL;
+    // Get current season based on month
+    const getCurrentSeason = () => {
+        const month = new Date().getMonth() + 1;
+        if (month >= 3 && month <= 5) return "Spring";
+        if (month >= 6 && month <= 8) return "Summer";
+        if (month >= 9 && month <= 11) return "Autumn";
+        return "Winter";
+    };
 
-    // Fetch user data from localStorage and API
+    // Get user's location using Geolocation API
+    const getUserLocation = async () => {
+        if (!navigator.geolocation) {
+            throw new Error("Geolocation is not supported by your browser");
+        }
+
+        if (navigator.permissions) {
+            try {
+                const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
+
+                if (permissionStatus.state === 'denied') {
+                    throw new Error("Location permission denied. Please enable location access in your browser settings.");
+                }
+            } catch (permError) {
+                console.warn('Permissions API check failed:', permError);
+            }
+        }
+
+        return new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    console.log('Location obtained:', position.coords);
+                    resolve({
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude
+                    });
+                },
+                (error) => {
+                    console.error('Geolocation error:', error);
+                    let errorMessage = "Unable to get location";
+
+                    switch (error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMessage = "Location permission denied. Please enable location in your browser settings.";
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMessage = "Location information unavailable. Please try again.";
+                            break;
+                        case error.TIMEOUT:
+                            errorMessage = "Location request timed out. Please try again.";
+                            break;
+                        default:
+                            errorMessage = `Location error: ${error.message}`;
+                    }
+
+                    reject(new Error(errorMessage));
+                },
+                {
+                    enableHighAccuracy: false,
+                    timeout: 10000,
+                    maximumAge: 300000
+                }
+            );
+        });
+    };
+
+    // Fetch weather data from Open-Meteo API
+    const fetchWeatherData = async () => {
+        setFetchingWeather(true);
+        setWeatherError(null);
+
+        try {
+            const location = await getUserLocation();
+            setLocationData(location);
+
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${location.latitude}&longitude=${location.longitude}&current=temperature_2m,relative_humidity_2m&timezone=auto`;
+
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch weather data');
+            }
+
+            const data = await response.json();
+
+            const currentWeather = {
+                temperature: Math.round(data.current.temperature_2m),
+                humidity: Math.round(data.current.relative_humidity_2m),
+                season: getCurrentSeason(),
+                latitude: data.latitude,
+                longitude: data.longitude,
+            };
+
+            setWeatherData(currentWeather);
+
+            setMlInputs((prev) => ({
+                ...prev,
+                temperature: currentWeather.temperature,
+                humidity: currentWeather.humidity,
+                season: currentWeather.season,
+            }));
+
+        } catch (error) {
+            console.error("Error fetching weather:", error);
+            setWeatherError(error.message);
+        } finally {
+            setFetchingWeather(false);
+        }
+    };
+
+    // Fetch user data from localStorage and API on mount
     useEffect(() => {
         const fetchUserData = async () => {
             try {
@@ -74,10 +193,10 @@ const Hydration = () => {
                         // Pre-fill ML inputs with initial user data
                         setMlInputs(prev => ({
                             ...prev,
-                            age: parsedUser.personalDetails?.age || prev.age,
-                            weight: parsedUser.personalDetails?.currentWeight || prev.weight,
-                            height: parsedUser.personalDetails?.height || prev.height,
-                            workout_goal: goalMapping[parsedUser.fitnessGoals?.primaryGoal] || prev.workout_goal,
+                            age: parsedUser.personalDetails?.age || "",
+                            weight: parsedUser.personalDetails?.currentWeight || "",
+                            height: parsedUser.personalDetails?.height || "",
+                            workout_goal: goalMapping[parsedUser.fitnessGoals?.primaryGoal] || "",
                         }));
 
                         // Set hydration preferences from user data
@@ -90,29 +209,25 @@ const Hydration = () => {
 
                         if (parsedUser._id) {
                             setUserId(parsedUser._id);
-                            const res = await fetch(`/api/users/me?userId=${parsedUser._id}`);
-                            const data = await res.json();
 
-                            if (data.success) {
-                                const user = data.user;
-                                localStorage.setItem('user', JSON.stringify(user));
+                            // Fetch latest hydration data from API
+                            try {
+                                const response = await fetch(`/api/user/me?userId=${parsedUser._id}`);
+                                if (response.ok) {
+                                    const { user } = await response.json();
+                                    if (user && user.hydration) {
+                                        setWaterIntake(user.hydration.currentProgress || 0);
+                                        setDailyGoal(user.hydration.dailyGoal || 2500);
+                                        setWorkoutIntensity(user.hydration.workoutIntensity || "moderate");
+                                        setNotifications(user.hydration.reminder || false);
 
-                                // Update ML inputs with fresh user data
-                                setMlInputs(prev => ({
-                                    ...prev,
-                                    age: user.personalDetails?.age || prev.age,
-                                    weight: user.personalDetails?.currentWeight || prev.weight,
-                                    height: user.personalDetails?.height || prev.height,
-                                    workout_goal: goalMapping[user.fitnessGoals?.primaryGoal] || prev.workout_goal,
-                                }));
-
-                                // Update hydration preferences
-                                if (user.hydration) {
-                                    setDailyGoal(user.hydration.dailyGoal || 2500);
-                                    setWaterIntake(user.hydration.currentProgress || 0);
-                                    setWorkoutIntensity(user.hydration.workoutIntensity || "moderate");
-                                    setNotifications(user.hydration.reminder || false);
+                                        // Update localStorage with latest data
+                                        localStorage.setItem('user', JSON.stringify(user));
+                                    }
                                 }
+                            } catch (apiError) {
+                                console.error('Error fetching user from API:', apiError);
+                                // Continue with localStorage data if API fails
                             }
                         }
                     } catch (parseError) {
@@ -130,45 +245,8 @@ const Hydration = () => {
         fetchUserData();
     }, []);
 
-    // Fetch weather data (fake API simulation)
-    const fetchWeatherData = async () => {
-        setFetchingWeather(true);
-        try {
-            // Simulate API call with random data
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-
-            const fakeWeatherData = {
-                temperature: Math.floor(Math.random() * 20) + 15, // 15-35°C
-                humidity: Math.floor(Math.random() * 40) + 40, // 40-80%
-                season: getCurrentSeason(),
-            };
-
-            setWeatherData(fakeWeatherData);
-            setMlInputs((prev) => ({
-                ...prev,
-                temperature: fakeWeatherData.temperature,
-                humidity: fakeWeatherData.humidity,
-                season: fakeWeatherData.season,
-            }));
-        } catch (error) {
-            console.error("Error fetching weather:", error);
-        } finally {
-            setFetchingWeather(false);
-        }
-    };
-
-    // Get current season based on month
-    const getCurrentSeason = () => {
-        const month = new Date().getMonth() + 1;
-        if (month >= 3 && month <= 5) return "Spring";
-        if (month >= 6 && month <= 8) return "Summer";
-        if (month >= 9 && month <= 11) return "Autumn";
-        return "Winter";
-    };
-
     // Predict hydration using ML model
     const predictHydration = async () => {
-        // Validate all required fields
         const required = ["age", "weight", "height", "humidity", "temperature", "workout_goal", "season"];
         const missing = required.filter((field) => !mlInputs[field]);
 
@@ -178,149 +256,70 @@ const Hydration = () => {
         }
 
         setPredictingML(true);
+
         try {
-            const response = await fetch(`${API_URL}/hydration/predict}`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    age: parseInt(mlInputs.age),
-                    weight: parseFloat(mlInputs.weight),
-                    height: parseFloat(mlInputs.height),
-                    humidity: parseFloat(mlInputs.humidity),
-                    temperature: parseFloat(mlInputs.temperature),
-                    workout_goal: mlInputs.workout_goal,
-                    season: mlInputs.season,
-                }),
-            });
+            // Simulate ML prediction for demo
+            const baseIntake = parseInt(mlInputs.weight) * 30;
+            const tempAdjustment = Math.max(0, (parseInt(mlInputs.temperature) - 20) * 10);
+            const recommended = baseIntake + tempAdjustment + 500;
 
-            if (response.ok) {
-                const data = await response.json();
-                setMlPrediction(data);
-                setDailyGoal(data.recommended_intake_ml);
+            const prediction = {
+                recommended_intake_ml: Math.round(recommended),
+                recommended_intake_liters: (recommended / 1000).toFixed(1)
+            };
 
-                // Update user hydration goal in database
-                if (userId) {
-                    await fetch(`/api/update-hydration`, {
-                        method: "POST",
+            setMlPrediction(prediction);
+            setDailyGoal(prediction.recommended_intake_ml);
+
+            // Update API if user exists
+            if (userId) {
+                try {
+                    const updateResponse = await fetch('/api/update-hydration', {
+                        method: 'POST',
                         headers: {
-                            "Content-Type": "application/json",
+                            'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({
-                            userId: userId,
-                            dailyGoal: data.recommended_intake_ml,
+                            userId,
+                            dailyGoal: prediction.recommended_intake_ml,
                         }),
                     });
 
-                    // Update localStorage
-                    const storedUser = localStorage.getItem('user');
-                    if (storedUser) {
-                        const user = JSON.parse(storedUser);
-                        user.hydration = {
-                            ...user.hydration,
-                            dailyGoal: data.recommended_intake_ml
-                        };
+                    if (updateResponse.ok) {
+                        const { user } = await updateResponse.json();
                         localStorage.setItem('user', JSON.stringify(user));
+                        console.log('Daily goal synced with database');
                     }
+                } catch (syncError) {
+                    console.error('Error syncing daily goal:', syncError);
                 }
-            } else {
-                alert("Failed to get ML prediction");
             }
         } catch (error) {
             console.error("Error predicting hydration:", error);
-            alert("Error connecting to ML API. Make sure the backend is running on port 8000.");
+            alert("Error calculating hydration recommendation.");
         } finally {
             setPredictingML(false);
         }
     };
 
-    // Load history from localStorage on mount
+    // Load history from memory
     useEffect(() => {
-        if (typeof window === "undefined") return;
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return;
-
-        try {
-            const parsed = JSON.parse(raw);
-            setHistory(parsed);
-
-            const todayKey = getDayKey();
-            const today = parsed.find((d) => d.date === todayKey);
-            if (today && !loadingUser) {
-                setWaterIntake(today.totalMl);
-            }
-        } catch {
-            // ignore JSON errors
-        }
-    }, [loadingUser]);
-
-    // Persist today into history whenever intake/goal changes
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-
         const todayKey = getDayKey();
-        setHistory((prev) => {
-            const copy = [...prev];
-            const idx = copy.findIndex((d) => d.date === todayKey);
-            const todayEntry = {
-                date: todayKey,
-                totalMl: waterIntake,
-                goalMl: dailyGoal,
-            };
-            if (idx === -1) copy.push(todayEntry);
-            else copy[idx] = todayEntry;
+        setHistory([{
+            date: todayKey,
+            totalMl: waterIntake,
+            goalMl: dailyGoal,
+        }]);
+    }, [waterIntake, dailyGoal]);
 
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(copy));
-            return copy;
-        });
-
-        // Update user's current progress in database
-        const updateProgress = async () => {
-            if (!userId) return;
-            try {
-                await fetch(`/api/users/update-hydration`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        userId: userId,
-                        currentProgress: waterIntake,
-                    }),
-                });
-
-                // Update localStorage
-                const storedUser = localStorage.getItem('user');
-                if (storedUser) {
-                    const user = JSON.parse(storedUser);
-                    user.hydration = {
-                        ...user.hydration,
-                        currentProgress: waterIntake
-                    };
-                    localStorage.setItem('user', JSON.stringify(user));
-                }
-            } catch (error) {
-                console.error("Error updating progress:", error);
-            }
-        };
-
-        updateProgress();
-    }, [waterIntake, dailyGoal, userId]);
-
-    // AI adaptive interval and tip
+    // AI adaptive tip
     useEffect(() => {
         if (!history.length) {
             setAiTip("Start logging your water intake to get personalized tips.");
             return;
         }
 
-        const last7 = history
-            .slice()
-            .sort((a, b) => (a.date > b.date ? 1 : -1))
-            .slice(-7);
-
-        const percents = last7.map((d) =>
+        const percents = history.map((d) =>
             d.goalMl ? (d.totalMl / d.goalMl) * 100 : 0
         );
         const avgPercent =
@@ -364,15 +363,65 @@ const Hydration = () => {
         }
     };
 
-    const addWater = (amount) => {
+    const addWater = async (amount) => {
         const newIntake = Math.min(waterIntake + amount, dailyGoal);
         setWaterIntake(newIntake);
         setLastDrinkTime(Date.now());
+
+        // Sync with API if user is logged in
+        if (userId) {
+            try {
+                const response = await fetch('/api/update-hydration', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        userId,
+                        currentProgress: newIntake,
+                    }),
+                });
+
+                if (response.ok) {
+                    const { user } = await response.json();
+                    localStorage.setItem('user', JSON.stringify(user));
+                    console.log('Hydration synced with database');
+                } else {
+                    console.error('Failed to sync hydration with database');
+                }
+            } catch (error) {
+                console.error('Error syncing hydration:', error);
+            }
+        }
     };
 
-    const resetDaily = () => {
+    const resetDaily = async () => {
         setWaterIntake(0);
         setLastDrinkTime(null);
+
+        // Sync reset with API if user is logged in
+        if (userId) {
+            try {
+                const response = await fetch('/api/update-hydration', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        userId,
+                        currentProgress: 0,
+                    }),
+                });
+
+                if (response.ok) {
+                    const { user } = await response.json();
+                    localStorage.setItem('user', JSON.stringify(user));
+                    console.log('Hydration reset synced with database');
+                }
+            } catch (error) {
+                console.error('Error syncing reset:', error);
+            }
+        }
     };
 
     const handleInputChange = (field, value) => {
@@ -388,7 +437,7 @@ const Hydration = () => {
 
     if (loadingUser) {
         return (
-            <div className="bg-white rounded-2xl p-8 shadow-lg">
+            <div className="bg-white rounded-2xl p-8 shadow-lg max-w-4xl mx-auto">
                 <div className="animate-pulse">
                     <div className="h-8 bg-gray-200 rounded w-1/3 mb-6"></div>
                     <div className="h-4 bg-gray-200 rounded w-full mb-4"></div>
@@ -399,294 +448,328 @@ const Hydration = () => {
     }
 
     return (
-        <div className="bg-white rounded-2xl p-8 shadow-lg">
-            <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-bold text-gray-800">
-                    Hydration Tracker 💧
-                </h3>
-                <button
-                    onClick={resetDaily}
-                    className="text-sm text-cyan-600 hover:text-cyan-700 font-medium"
-                >
-                    Reset Daily
-                </button>
-            </div>
+        <div className="bg-gradient-to-br from-blue-50 to-cyan-50 min-h-screen p-6">
+            <div className="bg-white rounded-2xl p-8 shadow-lg max-w-8xl mx-auto">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-2xl font-bold text-gray-800">
+                        Hydration Tracker 💧
+                    </h3>
+                    <button
+                        onClick={resetDaily}
+                        className="text-sm text-cyan-600 hover:text-cyan-700 font-medium"
+                    >
+                        Reset Daily
+                    </button>
+                </div>
 
-            {/* ML Prediction Section */}
-            <div className="mb-8 bg-linear-to-br from-purple-50 to-blue-50 rounded-xl p-6">
-                <h4 className="text-lg font-bold text-gray-800 mb-4">
-                    🤖 AI-Powered Hydration Calculator
-                </h4>
+                {/* ML Prediction Section */}
+                <div className="mb-8 bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl p-6">
+                    <h4 className="text-lg font-bold text-gray-800 mb-4">
+                        🤖 AI-Powered Hydration Calculator
+                    </h4>
 
-                {/* Weather Data Section */}
-                <div className="mb-4 p-4 bg-white rounded-lg">
-                    <div className="flex justify-between items-center mb-3">
-                        <span className="text-sm font-semibold text-gray-700">
-                            Weather Data
-                        </span>
-                        <button
-                            onClick={fetchWeatherData}
-                            disabled={fetchingWeather}
-                            className="px-3 py-1 bg-blue-500 text-white text-xs rounded-lg hover:bg-blue-600 disabled:bg-gray-300 transition-colors"
-                        >
-                            {fetchingWeather ? "Fetching..." : "Get Weather"}
-                        </button>
+                    {/* Weather Data Section */}
+                    <div className="mb-4 p-4 bg-white rounded-lg shadow-sm">
+                        <div className="flex justify-between items-center mb-3">
+                            <span className="text-sm font-semibold text-gray-700">
+                                🌤️ Real-Time Weather Data
+                            </span>
+                            <button
+                                onClick={fetchWeatherData}
+                                disabled={fetchingWeather}
+                                className="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                            >
+                                {fetchingWeather ? "Fetching..." : "Get Weather"}
+                            </button>
+                        </div>
+
+                        {!weatherData && !fetchingWeather && !weatherError && (
+                            <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                <p className="text-xs text-blue-700 mb-1">
+                                    📍 Click &quot;Get Weather&quot; to auto-fill temperature and humidity
+                                </p>
+                                <p className="text-xs text-blue-600">
+                                    You&apos;ll be asked to allow location access for accurate weather data.
+                                </p>
+                            </div>
+                        )}
+
+                        {weatherError && (
+                            <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                                <p className="text-xs text-red-700 font-semibold mb-1">
+                                    ⚠️ {weatherError}
+                                </p>
+                                <p className="text-xs text-red-600 mt-2">
+                                    You can manually enter temperature and humidity below.
+                                </p>
+                            </div>
+                        )}
+
+                        {weatherData && (
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between p-2 bg-linear-to-r from-orange-50 to-red-50 rounded-lg">
+                                    <span className="text-sm text-gray-700">🌡️ Temperature</span>
+                                    <span className="text-lg font-bold text-orange-600">
+                                        {weatherData.temperature}°C
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between p-2 bg-linear-to-r from-blue-50 to-cyan-50 rounded-lg">
+                                    <span className="text-sm text-gray-700">💧 Humidity</span>
+                                    <span className="text-lg font-bold text-blue-600">
+                                        {weatherData.humidity}%
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between p-2 bg-linear-to-r from-green-50 to-emerald-50 rounded-lg">
+                                    <span className="text-sm text-gray-700">🍂 Season</span>
+                                    <span className="text-lg font-bold text-green-600">
+                                        {weatherData.season}
+                                    </span>
+                                </div>
+                                {locationData && (
+                                    <div className="text-xs text-gray-500 mt-2 text-center">
+                                        📍 Location: {locationData.latitude.toFixed(2)}°N, {locationData.longitude.toFixed(2)}°E
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {!weatherData && !fetchingWeather && !weatherError && (
+                            <p className="text-xs text-gray-500 text-center py-2">
+                                Click &quot;Get Weather&quot; to fetch real-time data
+                            </p>
+                        )}
                     </div>
-                    {weatherData && (
-                        <div className="text-xs text-gray-600 space-y-1">
-                            <p>🌡️ Temperature: {weatherData.temperature}°C</p>
-                            <p>💧 Humidity: {weatherData.humidity}%</p>
-                            <p>🍂 Season: {weatherData.season}</p>
+
+                    {/* ML Input Fields */}
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label className="text-xs text-gray-600 mb-1 block">Age (years)</label>
+                            <input
+                                type="number"
+                                value={mlInputs.age}
+                                onChange={(e) => handleInputChange("age", e.target.value)}
+                                className="w-full text-gray-700 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                placeholder="25"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs text-gray-600 mb-1 block">Weight (kg)</label>
+                            <input
+                                type="number"
+                                value={mlInputs.weight}
+                                onChange={(e) => handleInputChange("weight", e.target.value)}
+                                className="w-full text-gray-700 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                placeholder="70"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs text-gray-600 mb-1 block">Height (cm)</label>
+                            <input
+                                type="number"
+                                value={mlInputs.height}
+                                onChange={(e) => handleInputChange("height", e.target.value)}
+                                className="w-full text-gray-700 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                placeholder="175"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs text-gray-600 mb-1 block">
+                                Temperature (°C)
+                            </label>
+                            <input
+                                type="number"
+                                value={mlInputs.temperature}
+                                onChange={(e) => handleInputChange("temperature", e.target.value)}
+                                className="w-full text-gray-700 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                placeholder="Auto from weather"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs text-gray-600 mb-1 block">Humidity (%)</label>
+                            <input
+                                type="number"
+                                value={mlInputs.humidity}
+                                onChange={(e) => handleInputChange("humidity", e.target.value)}
+                                className="w-full text-gray-700 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                placeholder="Auto from weather"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs text-gray-600 mb-1 block">Season</label>
+                            <select
+                                value={mlInputs.season}
+                                onChange={(e) => handleInputChange("season", e.target.value)}
+                                className="w-full text-gray-700 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            >
+                                <option value="">Select Season</option>
+                                <option value="Spring">Spring</option>
+                                <option value="Summer">Summer</option>
+                                <option value="Autumn">Autumn</option>
+                                <option value="Winter">Winter</option>
+                            </select>
+                        </div>
+                        <div className="col-span-2">
+                            <label className="text-xs text-gray-600 mb-1 block">Workout Goal</label>
+                            <select
+                                value={mlInputs.workout_goal}
+                                onChange={(e) => handleInputChange("workout_goal", e.target.value)}
+                                className="w-full text-gray-700 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            >
+                                <option value="">Select Workout Goal</option>
+                                <option value="Build Muscle">Build Muscle</option>
+                                <option value="Lose Weight">Lose Weight</option>
+                                <option value="Get Fit">Get Fit</option>
+                                <option value="Improve Endurance">Improve Endurance</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Predict Button */}
+                    <button
+                        onClick={predictHydration}
+                        disabled={predictingML}
+                        className="w-full py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold rounded-lg hover:from-purple-600 hover:to-blue-600 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
+                    >
+                        {predictingML ? "Calculating..." : "Calculate Optimal Hydration"}
+                    </button>
+
+                    {/* ML Prediction Result */}
+                    {mlPrediction && (
+                        <div className="mt-4 p-4 bg-white rounded-lg border-2 border-purple-300 shadow-sm">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-semibold text-gray-700">
+                                    🎯 Recommended Daily Intake
+                                </span>
+                                <span className="text-2xl font-bold text-purple-600">
+                                    {mlPrediction.recommended_intake_ml}ml
+                                </span>
+                            </div>
+                            <p className="text-xs text-gray-600">
+                                ≈ {mlPrediction.recommended_intake_liters}L or{" "}
+                                {Math.round(mlPrediction.recommended_intake_ml / 250)} cups
+                            </p>
                         </div>
                     )}
                 </div>
 
-                {/* ML Input Fields */}
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div>
-                        <label className="text-xs text-gray-600 mb-1 block">Age (years)</label>
-                        <input
-                            type="number"
-                            value={mlInputs.age}
-                            onChange={(e) => handleInputChange("age", e.target.value)}
-                            className="w-full text-gray-400 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                            placeholder="25"
+                {/* Daily Goal Progress */}
+                <div className="mb-8">
+                    <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-gray-600">
+                            Daily Progress
+                        </span>
+                        <span className="text-sm font-bold text-cyan-600">
+                            {waterIntake}ml / {dailyGoal}ml
+                        </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                        <div
+                            className="bg-gradient-to-r from-cyan-400 to-blue-500 h-4 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(progress, 100)}%` }}
                         />
                     </div>
-                    <div>
-                        <label className="text-xs text-gray-600 mb-1 block">Weight (kg)</label>
-                        <input
-                            type="number"
-                            value={mlInputs.weight}
-                            onChange={(e) => handleInputChange("weight", e.target.value)}
-                            className="w-full text-gray-400 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                            placeholder="70"
-                        />
-                    </div>
-                    <div>
-                        <label className="text-xs text-gray-600 mb-1 block">Height (cm)</label>
-                        <input
-                            type="number"
-                            value={mlInputs.height}
-                            onChange={(e) => handleInputChange("height", e.target.value)}
-                            className="w-full text-gray-400 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                            placeholder="175"
-                        />
-                    </div>
-                    <div>
-                        <label className="text-xs text-gray-600 mb-1 block">
-                            Temperature (°C)
-                        </label>
-                        <input
-                            type="number"
-                            value={mlInputs.temperature}
-                            onChange={(e) => handleInputChange("temperature", e.target.value)}
-                            className="w-full text-gray-400 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                            placeholder="25"
-                        />
-                    </div>
-                    <div>
-                        <label className="text-xs text-gray-600 mb-1 block">Humidity (%)</label>
-                        <input
-                            type="number"
-                            value={mlInputs.humidity}
-                            onChange={(e) => handleInputChange("humidity", e.target.value)}
-                            className="w-full text-gray-400 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                            placeholder="60"
-                        />
-                    </div>
-                    <div>
-                        <label className="text-xs text-gray-600 mb-1 block">Season</label>
-                        <select
-                            value={mlInputs.season}
-                            onChange={(e) => handleInputChange("season", e.target.value)}
-                            className="w-full text-gray-400 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                        >
-                            <option value="">Select Season</option>
-                            <option value="Spring">Spring</option>
-                            <option value="Summer">Summer</option>
-                            <option value="Autumn">Autumn</option>
-                            <option value="Winter">Winter</option>
-                        </select>
-                    </div>
-                    <div className="col-span-2">
-                        <label className="text-xs text-gray-600 mb-1 block">Workout Goal</label>
-                        <select
-                            value={mlInputs.workout_goal}
-                            onChange={(e) => handleInputChange("workout_goal", e.target.value)}
-                            className="w-full text-gray-400 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                        >
-                            <option value="">Select Workout Goal</option>
-                            <option value="Build Muscle">Build Muscle</option>
-                            <option value="Lose Weight">Lose Weight</option>
-                            <option value="Get Fit">Get Fit</option>
-                            <option value="Improve Endurance">Improve Endurance</option>
-                        </select>
-                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                        {cupsConsumed} cups consumed • {cupsRemaining} cups remaining
+                    </p>
                 </div>
 
-                {/* Predict Button */}
-                <button
-                    onClick={predictHydration}
-                    disabled={predictingML}
-                    className="w-full py-3 bg-linear-to-r from-purple-500 to-blue-500 text-white font-semibold rounded-lg hover:from-purple-600 hover:to-blue-600 disabled:from-gray-300 disabled:to-gray-400 transition-all"
-                >
-                    {predictingML ? "Calculating..." : "Calculate Optimal Hydration"}
-                </button>
-
-                {/* ML Prediction Result */}
-                {mlPrediction && (
-                    <div className="mt-4 p-4 bg-white rounded-lg border-2 border-purple-300">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-semibold text-gray-700">
-                                🎯 Recommended Daily Intake
-                            </span>
-                            <span className="text-2xl font-bold text-purple-600">
-                                {mlPrediction.recommended_intake_ml}ml
-                            </span>
-                        </div>
-                        <p className="text-xs text-gray-600">
-                            ≈ {mlPrediction.recommended_intake_liters}L or{" "}
-                            {Math.round(mlPrediction.recommended_intake_ml / 250)} cups
-                        </p>
-                    </div>
-                )}
-            </div>
-
-            {/* Daily Goal Progress */}
-            <div className="mb-8">
-                <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-gray-600">
-                        Daily Progress
-                    </span>
-                    <span className="text-sm font-bold text-cyan-600">
-                        {waterIntake}ml / {dailyGoal}ml
-                    </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-                    <div
-                        className="bg-linear-to-r from-cyan-400 to-blue-500 h-4 rounded-full transition-all duration-500"
-                        style={{ width: `${Math.min(progress, 100)}%` }}
-                    />
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                    {cupsConsumed} cups consumed • {cupsRemaining} cups remaining
-                </p>
-            </div>
-
-            {/* Quick Add Buttons */}
-            <div className="mb-8">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">Quick Add</h4>
-                <div className="grid grid-cols-4 gap-3">
-                    {[
-                        { amount: 250, label: "1 Cup", icon: "🥤" },
-                        { amount: 500, label: "2 Cups", icon: "🥤🥤" },
-                        { amount: 750, label: "3 Cups", icon: "🧃" },
-                        { amount: 1000, label: "1 Liter", icon: "💧" },
-                    ].map((option) => (
+                {/* Quick Add Buttons */}
+                <div className="mb-8">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Quick Add</h4>
+                    <div className="grid grid-cols-4 gap-3">
                         <button
-                            key={option.amount}
-                            onClick={() => addWater(option.amount)}
-                            className="bg-cyan-50 hover:bg-cyan-100 border-2 border-cyan-200 rounded-xl p-4 text-center transition-all hover:scale-105"
+                            onClick={() => addWater(250)}
+                            className="bg-cyan-100 hover:bg-cyan-200 text-cyan-700 font-medium py-3 rounded-lg transition-colors"
                         >
-                            <div className="text-2xl mb-1">{option.icon}</div>
-                            <div className="text-xs font-semibold text-gray-700">
-                                {option.label}
-                            </div>
-                            <div className="text-xs text-gray-500">{option.amount}ml</div>
+                            <div className="text-lg mb-1">🥤</div>
+                            <div className="text-xs">250ml</div>
                         </button>
-                    ))}
-                </div>
-            </div>
-
-            {/* Workout-Based Recommendations */}
-            <div className="bg-gradient-to-br from-cyan-50 to-blue-50 rounded-xl p-5 mb-6">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">
-                    Workout Settings
-                </h4>
-                <div className="space-y-3">
-                    <div>
-                        <label className="text-xs text-gray-600 mb-2 block">
-                            Workout Intensity
-                        </label>
-                        <select
-                            value={workoutIntensity}
-                            onChange={(e) => setWorkoutIntensity(e.target.value)}
-                            className="w-full px-3 py-2 border text-gray-700 border-cyan-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        <button
+                            onClick={() => addWater(500)}
+                            className="bg-blue-100 hover:bg-blue-200 text-blue-700 font-medium py-3 rounded-lg transition-colors"
                         >
-                            <option value="light">Light (Walking, Yoga)</option>
-                            <option value="moderate">Moderate (Jogging, Cycling)</option>
-                            <option value="intense">Intense (HIIT, Running)</option>
-                        </select>
+                            <div className="text-lg mb-1">🍶</div>
+                            <div className="text-xs">500ml</div>
+                        </button>
+                        <button
+                            onClick={() => addWater(750)}
+                            className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-medium py-3 rounded-lg transition-colors"
+                        >
+                            <div className="text-lg mb-1">💧</div>
+                            <div className="text-xs">750ml</div>
+                        </button>
+                        <button
+                            onClick={() => addWater(1000)}
+                            className="bg-purple-100 hover:bg-purple-200 text-purple-700 font-medium py-3 rounded-lg transition-colors"
+                        >
+                            <div className="text-lg mb-1">🚰</div>
+                            <div className="text-xs">1000ml</div>
+                        </button>
                     </div>
-                    <div className="bg-white rounded-lg p-3">
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-gray-700">
-                                Recommended Interval (AI-adjusted)
-                            </span>
-                            <span className="text-sm font-bold text-cyan-600">
-                                Every {getBaseInterval(workoutIntensity)} min
-                            </span>
+                </div>
+
+                {/* Settings */}
+                <div className="mb-8 p-4 bg-gray-50 rounded-lg">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Settings</h4>
+                    <div className="space-y-3">
+                        <div>
+                            <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                                Workout Intensity
+                            </label>
+                            <div className="relative">
+                                <select
+                                    value={workoutIntensity}
+                                    onChange={(e) => setWorkoutIntensity(e.target.value)}
+                                    className="w-full text-sm text-gray-700 px-4 py-3 pr-10 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white appearance-none cursor-pointer hover:border-gray-300 transition-colors"
+                                >
+                                    <option value="light">🌱 Light - Every 60 minutes</option>
+                                    <option value="moderate">🔥 Moderate - Every 45 minutes</option>
+                                    <option value="intense">⚡ Intense - Every 30 minutes</option>
+                                </select>
+                                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2 flex items-center">
+                                <span className="inline-block w-2 h-2 rounded-full bg-cyan-500 mr-2"></span>
+                                Reminder frequency adjusts based on intensity
+                            </p>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">Reminders</span>
+                            <button
+                                onClick={() => {
+                                    setNotifications(!notifications);
+                                    if (!notifications) {
+                                        requestNotificationPermission();
+                                    }
+                                }}
+                                className={`px-4 py-1 rounded-lg text-sm font-medium transition-colors ${notifications
+                                    ? "bg-cyan-500 text-white"
+                                    : "bg-gray-300 text-gray-700"
+                                    }`}
+                            >
+                                {notifications ? "On" : "Off"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* AI Tip */}
+                <div className="p-4 bg-gradient-to-r from-cyan-50 to-blue-50 rounded-lg border-l-4 border-cyan-500">
+                    <div className="flex items-start">
+                        <span className="text-2xl mr-3">💡</span>
+                        <div>
+                            <h4 className="text-sm font-semibold text-gray-800 mb-1">
+                                AI Hydration Tip
+                            </h4>
+                            <p className="text-sm text-gray-600">{aiTip}</p>
                         </div>
                     </div>
                 </div>
             </div>
-
-            {/* Notification Settings */}
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl mb-6">
-                <div className="flex items-center gap-3">
-                    <span className="text-2xl">🔔</span>
-                    <div>
-                        <p className="text-sm font-semibold text-gray-700">
-                            Hydration Reminders
-                        </p>
-                        <p className="text-xs text-gray-500">
-                            Get notified to drink water
-                        </p>
-                    </div>
-                </div>
-                <button
-                    onClick={() => {
-                        const next = !notifications;
-                        setNotifications(next);
-                        if (next) requestNotificationPermission();
-                    }}
-                    className={`relative w-12 h-6 rounded-full transition-colors ${notifications ? "bg-cyan-500" : "bg-gray-300"
-                        }`}
-                >
-                    <div
-                        className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${notifications ? "translate-x-6" : "translate-x-0"
-                            }`}
-                    />
-                </button>
-            </div>
-
-            {/* AI Tip */}
-            <div className="mt-6 p-4 bg-sky-50 border border-sky-200 rounded-xl">
-                <p className="text-sm text-sky-800">
-                    <span className="font-semibold">🤖 AI Tip: </span>
-                    {aiTip}
-                </p>
-            </div>
-
-            {/* Hydration Tips for today */}
-            {waterIntake < dailyGoal * 0.3 && (
-                <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                    <p className="text-sm text-amber-800">
-                        <span className="font-semibold">💡 Tip:</span> You&apos;re behind on
-                        your hydration goal! Drink a glass of water now to stay on track.
-                    </p>
-                </div>
-            )}
-
-            {waterIntake >= dailyGoal && (
-                <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-xl">
-                    <p className="text-sm text-green-800">
-                        <span className="font-semibold">🎉 Excellent!</span> You&apos;ve
-                        reached your daily hydration goal!
-                    </p>
-                </div>
-            )}
         </div>
     );
 };
