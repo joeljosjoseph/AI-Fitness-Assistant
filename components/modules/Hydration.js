@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { toast } from "react-toastify";
 
 const STORAGE_KEY = "hydration_history_dataset";
 
@@ -251,7 +252,7 @@ const Hydration = () => {
         const missing = required.filter((field) => !mlInputs[field]);
 
         if (missing.length > 0) {
-            alert(`Please fill in all required fields: ${missing.join(", ")}`);
+            toast.info(`Please fill in all required fields: ${missing.join(", ")}`);
             return;
         }
 
@@ -296,7 +297,7 @@ const Hydration = () => {
             }
         } catch (error) {
             console.error("Error predicting hydration:", error);
-            alert("Error calculating hydration recommendation.");
+            toast.info("Error calculating hydration recommendation.");
         } finally {
             setPredictingML(false);
         }
