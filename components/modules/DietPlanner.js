@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Utensils, User, Target, Scale, Ruler, TrendingUp, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 const DietPlanner = () => {
     const [loading, setLoading] = useState(false);
@@ -104,12 +105,12 @@ const DietPlanner = () => {
     const handleSubmit = async () => {
         // Validation
         if (!formData.gender || !formData.goal || !formData.weight_kg || !formData.height_cm) {
-            alert('Please fill in all fields');
+            toast.info('Please fill in all fields');
             return;
         }
 
         if (formData.weight_kg <= 0 || formData.height_cm <= 0) {
-            alert('Please enter valid weight and height');
+            toast.info('Please enter valid weight and height');
             return;
         }
 
@@ -137,7 +138,7 @@ const DietPlanner = () => {
             const data = await response.json();
             setResult(data);
         } catch (err) {
-            alert(err.message || 'Failed to generate diet plan');
+            toast.error(err.message || 'Failed to generate diet plan');
             console.error('Diet plan error:', err);
         } finally {
             setLoading(false);
