@@ -142,7 +142,7 @@ export default function WorkoutDashboard() {
         )}
 
         {/* Other tabs placeholder */}
-        {!["dashboard", "camera", "chat", "hydration", "workouts",].includes(activeTab) && (
+        {!["dashboard", "camera", "chat", "hydration", "workouts", "dietPlanner"].includes(activeTab) && (
           <div className="bg-white rounded-2xl p-8 shadow-lg">
             <h3 className="text-2xl font-bold text-gray-800 mb-4 capitalize">
               {activeTab}
