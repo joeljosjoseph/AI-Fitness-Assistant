@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/static-components */
-import { Calendar, Camera, Droplets, Dumbbell, Home, LogOut, MessageCircle, Settings } from "lucide-react";
+import { Calendar, Camera, Droplets, Dumbbell, Home, LogOut, MessageCircle, Settings, Drumstick } from "lucide-react";
 import { useRouter } from "next/router";
 import React from "react";
 
@@ -65,6 +65,11 @@ const Sidebar = ({ activeTab, sidebarOpen, setActiveTab, setSidebarOpen }) => {
           value="chat"
           active={activeTab === "chat"}
         />
+        <NavigationItem
+          icon={Drumstick}
+          label="Diet Planner"
+          value="dietPlanner"
+          active={activeTab === "dietPlanner"} />
         <NavigationItem
           icon={Calendar}
           label="Schedule"

@@ -131,7 +131,7 @@ const PostureCam = () => {
 
                 if (data.done_by_target) {
                     handleStop();
-                    toast.success('Target reps completed! Great job!');
+                    // toast.success('Target reps completed! Great job!');
                 }
             } catch (err) {
                 console.error('Analysis error:', err);

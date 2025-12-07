@@ -11,6 +11,7 @@ import Chatbot from "@/components/modules/Chatbot";
 import { useRouter } from "next/router";
 import Hydration from "@/components/modules/Hydration";
 import Workout from "@/components/modules/Workout";
+import DietPlanner from "@/components/modules/DietPlanner";
 
 export default function WorkoutDashboard() {
   const router = useRouter();
@@ -135,9 +136,13 @@ export default function WorkoutDashboard() {
         {activeTab === "chat" && (
           <Chatbot />
         )}
+        {/* Diet Planner Tab */}
+        {activeTab === "dietPlanner" && (
+          <DietPlanner />
+        )}
 
         {/* Other tabs placeholder */}
-        {!["dashboard", "camera", "chat", "hydration", "workouts"].includes(activeTab) && (
+        {!["dashboard", "camera", "chat", "hydration", "workouts",].includes(activeTab) && (
           <div className="bg-white rounded-2xl p-8 shadow-lg">
             <h3 className="text-2xl font-bold text-gray-800 mb-4 capitalize">
               {activeTab}
