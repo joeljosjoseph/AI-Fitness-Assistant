@@ -69,14 +69,14 @@ export default function WorkoutDashboard() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-br from-blue-50 to-cyan-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 to-cyan-50">
       <Sidebar
         sidebarOpen={sidebarOpen}
         activeTab={activeTab}
@@ -106,7 +106,7 @@ export default function WorkoutDashboard() {
           </div>
           <button
             onClick={() => router.push("/profile")}
-            className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white font-semibold shadow-lg cursor-pointer hover:shadow-xl transition-all"
+            className="w-12 h-12 rounded-full bg-linear-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white font-semibold shadow-lg cursor-pointer hover:shadow-xl transition-all"
           >
             <User className="w-6 h-6" />
           </button>

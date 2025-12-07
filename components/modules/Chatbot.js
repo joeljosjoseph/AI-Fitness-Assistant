@@ -401,9 +401,9 @@ Generate ${workoutDays} complete workout days following the exact format in your
                     <>
                         {messages.map((msg, i) => (
                             <div key={i} className={`flex items-start space-x-3 ${msg.role === "user" ? "flex-row-reverse space-x-reverse" : ""}`}>
-                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${msg.role === "assistant"
-                                    ? "bg-gradient-to-br from-cyan-400 to-blue-500"
-                                    : "bg-gradient-to-br from-purple-400 to-pink-500"
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${msg.role === "assistant"
+                                    ? "bg-linear-to-br from-cyan-400 to-blue-500"
+                                    : "bg-linear-to-br from-purple-400 to-pink-500"
                                     }`}>
                                     {msg.role === "assistant" ? (
                                         <MessageCircle className="w-4 h-4 text-white" />
@@ -413,7 +413,7 @@ Generate ${workoutDays} complete workout days following the exact format in your
                                 </div>
                                 <div className={`p-4 rounded-2xl max-w-2xl ${msg.role === "assistant"
                                     ? "bg-gray-100 rounded-tl-none text-gray-800"
-                                    : "bg-gradient-to-br from-cyan-400 to-blue-500 text-white rounded-tr-none"
+                                    : "bg-linear-to-br from-cyan-400 to-blue-500 text-white rounded-tr-none"
                                     }`}>
                                     {msg.role === "assistant" ? (
                                         <div className="whitespace-pre-wrap">
@@ -427,7 +427,7 @@ Generate ${workoutDays} complete workout days following the exact format in your
                         ))}
                         {isLoading && (
                             <div className="flex items-start space-x-3">
-                                <div className="w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg flex items-center justify-center">
+                                <div className="w-8 h-8 bg-linear-to-br from-cyan-400 to-blue-500 rounded-lg flex items-center justify-center">
                                     <MessageCircle className="text-white w-4 h-4" />
                                 </div>
                                 <div className="bg-gray-100 p-4 rounded-2xl">
