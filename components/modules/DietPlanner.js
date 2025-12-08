@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Utensils, User, Target, Scale, Ruler, TrendingUp, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
+import { Utensils, User, Target, Scale, Ruler, TrendingUp, Loader2, RefreshCw, AlertCircle, Flame, Beef } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 const DietPlanner = () => {
@@ -137,6 +137,7 @@ const DietPlanner = () => {
 
             const data = await response.json();
             setResult(data);
+            toast.success('Diet plan generated successfully! 🎉');
         } catch (err) {
             toast.error(err.message || 'Failed to generate diet plan');
             console.error('Diet plan error:', err);
@@ -175,7 +176,7 @@ const DietPlanner = () => {
 
     if (loadingUser) {
         return (
-            <div className="w-full min-h-screen bg-linear-to-br from-blue-50 to-cyan-50 p-6">
+            <div className="w-full min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 p-6">
                 <div className="max-w-6xl mx-auto">
                     <div className="bg-white rounded-2xl shadow-sm p-12 flex items-center justify-center">
                         <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
@@ -187,7 +188,7 @@ const DietPlanner = () => {
     }
 
     return (
-        <div className="w-full min-h-screen bg-linear-to-br from-blue-50 to-cyan-50 p-6">
+        <div className="w-full min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 p-6">
             <div className="max-w-6xl mx-auto">
                 {/* Header */}
                 <div className="mb-6">
@@ -319,32 +320,52 @@ const DietPlanner = () => {
                 {/* Results */}
                 {result && (
                     <div className="space-y-6">
-                        {/* BMI Card */}
+                        {/* BMI and Stats Card */}
                         <div className="bg-white rounded-2xl p-6 shadow-sm">
                             <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
                                 <TrendingUp className="w-5 h-5 text-cyan-500" />
                                 Your Health Metrics
                             </h3>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div className="text-center p-4 bg-linear-to-br from-blue-50 to-cyan-50 rounded-xl">
+                                <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl">
                                     <div className="text-sm text-gray-600 mb-1">Gender</div>
                                     <div className="text-xl font-bold text-gray-800">{result.gender}</div>
                                 </div>
-                                <div className="text-center p-4 bg-linear-to-br from-blue-50 to-cyan-50 rounded-xl">
+                                <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl">
                                     <div className="text-sm text-gray-600 mb-1">Goal</div>
                                     <div className="text-lg font-bold text-gray-800">{result.goal}</div>
                                 </div>
-                                <div className="text-center p-4 bg-linear-to-br from-blue-50 to-cyan-50 rounded-xl">
+                                <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl">
                                     <div className="text-sm text-gray-600 mb-1">BMI</div>
                                     <div className={`text-2xl font-bold ${getBMIColor(result.bmi)}`}>
                                         {result.bmi}
                                     </div>
                                 </div>
-                                <div className="text-center p-4 bg-linear-to-br from-blue-50 to-cyan-50 rounded-xl">
+                                <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl">
                                     <div className="text-sm text-gray-600 mb-1">Category</div>
                                     <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getBMIBadge(result.bmi_category)}`}>
                                         {result.bmi_category}
                                     </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Plan Category & Macros Card */}
+                        <div className="bg-white rounded-2xl p-6 shadow-sm">
+                            <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                                Diet Plan Category
+                            </h3>
+                            <div className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl p-6 mb-4">
+                                <div className="text-2xl font-bold mb-2">{result.meal_plan_category}</div>
+                                <div className="flex items-center gap-6 text-sm">
+                                    <div className="flex items-center gap-2">
+                                        <Flame className="w-5 h-5" />
+                                        <span className="font-semibold">{result.calories} cal</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Beef className="w-5 h-5" />
+                                        <span className="font-semibold">{result.protein}g protein</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -357,9 +378,9 @@ const DietPlanner = () => {
                             </h3>
 
                             {/* Parse and display meal plan */}
-                            <div className="bg-linear-to-br from-blue-50 to-cyan-50 rounded-xl p-6 border border-cyan-100">
+                            <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-6 border border-cyan-100">
                                 <div className="space-y-3 text-gray-700">
-                                    {result.meal_plan.split('|').map((section, idx) => {
+                                    {result?.meal_plan_details?.split('|').map((section, idx) => {
                                         const trimmedSection = section.trim();
 
                                         // Skip empty sections
