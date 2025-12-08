@@ -449,7 +449,7 @@ const Hydration = () => {
     }
 
     return (
-        <div className="bg-gradient-to-br from-blue-50 to-cyan-50 min-h-screen p-6">
+        <div className="bg-linear-to-br from-blue-50 to-cyan-50 min-h-screen p-6">
             <div className="bg-white rounded-2xl p-8 shadow-lg max-w-8xl mx-auto">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-2xl font-bold text-gray-800">
@@ -464,7 +464,7 @@ const Hydration = () => {
                 </div>
 
                 {/* ML Prediction Section */}
-                <div className="mb-8 bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl p-6">
+                <div className="mb-8 bg-linear-to-br from-purple-50 to-blue-50 rounded-xl p-6">
                     <h4 className="text-lg font-bold text-gray-800 mb-4">
                         🤖 AI-Powered Hydration Calculator
                     </h4>
@@ -629,7 +629,7 @@ const Hydration = () => {
                     <button
                         onClick={predictHydration}
                         disabled={predictingML}
-                        className="w-full py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold rounded-lg hover:from-purple-600 hover:to-blue-600 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
+                        className="w-full py-3 bg-linear-to-r from-purple-500 to-blue-500 text-white font-semibold rounded-lg hover:from-purple-600 hover:to-blue-600 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
                     >
                         {predictingML ? "Calculating..." : "Calculate Optimal Hydration"}
                     </button>
@@ -665,7 +665,7 @@ const Hydration = () => {
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
                         <div
-                            className="bg-gradient-to-r from-cyan-400 to-blue-500 h-4 rounded-full transition-all duration-500"
+                            className="bg-linear-to-r from-cyan-400 to-blue-500 h-4 rounded-full transition-all duration-500"
                             style={{ width: `${Math.min(progress, 100)}%` }}
                         />
                     </div>
@@ -759,7 +759,7 @@ const Hydration = () => {
                 </div>
 
                 {/* AI Tip */}
-                <div className="p-4 bg-gradient-to-r from-cyan-50 to-blue-50 rounded-lg border-l-4 border-cyan-500">
+                <div className="p-4 bg-linear-to-r from-cyan-50 to-blue-50 rounded-lg border-l-4 border-cyan-500">
                     <div className="flex items-start">
                         <span className="text-2xl mr-3">💡</span>
                         <div>
