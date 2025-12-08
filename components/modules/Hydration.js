@@ -250,24 +250,34 @@ const Hydration = () => {
     const predictHydration = async () => {
         const required = ["age", "weight", "height", "humidity", "temperature", "workout_goal", "season"];
         const missing = required.filter((field) => !mlInputs[field]);
-
         if (missing.length > 0) {
             toast.info(`Please fill in all required fields: ${missing.join(", ")}`);
             return;
         }
-
         setPredictingML(true);
-
         try {
-            // Simulate ML prediction for demo
-            const baseIntake = parseInt(mlInputs.weight) * 30;
-            const tempAdjustment = Math.max(0, (parseInt(mlInputs.temperature) - 20) * 10);
-            const recommended = baseIntake + tempAdjustment + 500;
+            // Call ML prediction API
+            const mlResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/hydration/predict`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    age: parseInt(mlInputs.age),
+                    weight: parseInt(mlInputs.weight),
+                    height: parseInt(mlInputs.height),
+                    humidity: parseInt(mlInputs.humidity),
+                    temperature: parseInt(mlInputs.temperature),
+                    workout_goal: mlInputs.workout_goal,
+                    season: mlInputs.season
+                }),
+            });
 
-            const prediction = {
-                recommended_intake_ml: Math.round(recommended),
-                recommended_intake_liters: (recommended / 1000).toFixed(1)
-            };
+            if (!mlResponse.ok) {
+                throw new Error('ML prediction failed');
+            }
+
+            const prediction = await mlResponse.json();
 
             setMlPrediction(prediction);
             setDailyGoal(prediction.recommended_intake_ml);
@@ -285,7 +295,6 @@ const Hydration = () => {
                             dailyGoal: prediction.recommended_intake_ml,
                         }),
                     });
-
                     if (updateResponse.ok) {
                         const { user } = await updateResponse.json();
                         localStorage.setItem('user', JSON.stringify(user));
