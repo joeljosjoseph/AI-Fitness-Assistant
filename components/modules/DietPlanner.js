@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 const DietPlanner = () => {
     const [loading, setLoading] = useState(false);
     const [loadingUser, setLoadingUser] = useState(true);
+    const [availableOptions, setAvailableOptions] = useState(null);
     const [formData, setFormData] = useState({
         gender: '',
         goal: '',
@@ -12,7 +13,7 @@ const DietPlanner = () => {
         height_cm: ''
     });
     const [result, setResult] = useState(null);
-    const [availableOptions, setAvailableOptions] = useState(null);
+
     const [userId, setUserId] = useState(null);
 
     const API_URL = process.env.NEXT_PUBLIC_API_URL;
