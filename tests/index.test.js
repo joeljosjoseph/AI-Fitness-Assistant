@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import AuthPage from "./index";
+import AuthPage from "../pages/index";
 
 // ─── Mock Setup ───────────────────────────────────────────────────────────────
 

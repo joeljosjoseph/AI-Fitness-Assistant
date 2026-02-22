@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import Workout from "./Workout";
+import Workout from "../components/modules/Workout";
 
 beforeEach(() => {
     jest.spyOn(console, "error").mockImplementation(() => { });

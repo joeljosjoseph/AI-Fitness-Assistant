@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import DietPlanner from "./DietPlanner";
+import DietPlanner from "../components/modules/DietPlanner";
 
 // ─── Mock Setup ───────────────────────────────────────────────────────────────
 

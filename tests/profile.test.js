@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import UserProfile from "./profile";
+import UserProfile from "../pages/profile";
 
 // ─── Mock Next.js App Router ───────────────────────────────────────
 

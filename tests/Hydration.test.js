@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import Hydration from "./Hydration";
+import Hydration from "../components/modules/Hydration";
 
 // ─── Mock Setup ───────────────────────────────────────────────────────────────
 
