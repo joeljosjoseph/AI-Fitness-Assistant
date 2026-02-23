@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { useState } from "react";
 import { Bell, Loader2 } from "lucide-react";
 import { useRouter } from "next/router";
@@ -19,6 +20,12 @@ export default function AuthPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+
+    Sentry.addBreadcrumb({
+      category: "auth",
+      message: "User attempting login",
+      level: "info",
+    });
 
     try {
       if (isLogin) {
@@ -47,6 +54,16 @@ export default function AuthPage() {
             transition: Bounce,
           });
           console.error("Login error:", data.error);
+          Sentry.captureMessage("Login failed", {
+            level: "warning",
+            tags: {
+              module: "auth-login",
+            },
+            extra: {
+              email: formData.email,
+              error: data.error,
+            },
+          });
           setIsLoading(false);
           return;
         }
@@ -56,6 +73,11 @@ export default function AuthPage() {
 
         // Fetch full user info
         if (data.user && data.user.id) {
+          Sentry.setUser({
+            id: data.user.id,
+            email: data.user.email,
+          });
+
           try {
             const userRes = await fetch(`/api/users/me?userId=${data.user.id}`);
             const userData = await userRes.json();
@@ -136,6 +158,16 @@ export default function AuthPage() {
             transition: Bounce,
           });
           console.error("Signup error:", data.error);
+          Sentry.captureMessage("Signup failed", {
+            level: "warning",
+            tags: {
+              module: "auth-signup",
+            },
+            extra: {
+              email: formData.email,
+              error: data.error,
+            },
+          });
           setIsLoading(false);
           return;
         }
@@ -153,7 +185,12 @@ export default function AuthPage() {
         }
       }
     } catch (err) {
-      console.error("Authentication error:", err);
+      Sentry.captureException(err, {
+        tags: {
+          module: "auth-system",
+        },
+      });
+
       toast.error(err.message || "An error occurred");
       setIsLoading(false);
     }
