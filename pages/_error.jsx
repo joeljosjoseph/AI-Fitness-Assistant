@@ -6,9 +6,10 @@ export default function Error(error, reset) {
     Sentry.captureException(error);
   }, [error]);
   return (
-    <div>
-      <h2>Something went wrong!</h2>
-      <button onClick={() => reset()}>Try again</button>
-    </div>
+    <html>
+      <body>
+        <h2>Something went wrong</h2>
+      </body>
+    </html>
   );
 }
