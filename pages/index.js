@@ -61,7 +61,8 @@ export default function AuthPage() {
             },
             extra: {
               email: formData.email,
-              error: data.error,
+              status: res.status,
+              apiMessage: data.error, // only the message
             },
           });
           setIsLoading(false);
@@ -165,7 +166,8 @@ export default function AuthPage() {
             },
             extra: {
               email: formData.email,
-              error: data.error,
+              status: res.status,
+              apiMessage: data.error, // only the message
             },
           });
           setIsLoading(false);
