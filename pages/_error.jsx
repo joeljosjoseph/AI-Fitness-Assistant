@@ -1,11 +1,9 @@
-import * as Sentry from '@sentry/nextjs';
+"use client";
+import * as Sentry from "@sentry/nextjs";
 import Error from "next/error";
 
-// Replace "YourCustomErrorComponent" with your custom error component!
-YourCustomErrorComponent.getInitialProps = async (contextData) => {
-  await Sentry.captureUnderscoreErrorException(contextData);
-
-  // ...other getInitialProps code
+export default function GlobalError({ error }) {
+  Sentry.captureException(error);
 
   return Error.getInitialProps(contextData);
-};
+}
