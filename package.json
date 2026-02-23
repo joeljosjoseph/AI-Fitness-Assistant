@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@sentry/nextjs": "^10.39.0",
     "dotenv": "^17.2.3",
     "lucide-react": "^0.555.0",
     "mongoose": "^9.0.0",
