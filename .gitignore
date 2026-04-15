@@ -47,9 +47,8 @@ next-env.d.ts
 # Sentry Config File
 .env.sentry-build-plugin
 
-# Local-only clutter — see _local_backup_do_not_push/README.txt and docs/BRANCH_PUSH_CHECKLIST.md
-_local_backup_do_not_push/*
-!_local_backup_do_not_push/README.txt
+# Ultralytics will download pretrained weights on first train if missing (~6 MB)
+/yolov8n.pt
 
 # Fridge YOLO dataset (Roboflow) — very large; keep yaml/README. Re-download or run train_fridge_model.py if needed.
 /FridgeVision.yolov8/train/

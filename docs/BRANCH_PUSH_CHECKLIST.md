@@ -50,10 +50,7 @@ Your scope is **Diet Planner** and **Fridge image detection**. The app should st
 2. `cp env.sample .env.local` and set `NEXT_PUBLIC_API_URL`, MongoDB, etc.
 3. Diet ML (optional retrain): `pip install -r requirements-diet-ai.txt` then `npm run train-diet-ai`
 4. Fridge: Python env with Ultralytics; `npm run dev` and `python` on PATH for `/api/fridge/detect`
-
-## Personal / out-of-scope files
-
-Put anything you **do not** want in the shared PR into **`_local_backup_do_not_push/`** (gitignored). Copy that folder elsewhere if you want a backup, then keep the main repo clean for the PR.
+5. Training YOLO from scratch: `yolov8n.pt` is gitignored; Ultralytics can fetch it automatically, or download once locally.
 
 ## Do not commit
 
