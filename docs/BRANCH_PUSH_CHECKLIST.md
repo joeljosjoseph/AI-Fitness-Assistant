@@ -34,7 +34,7 @@ Your scope is **Diet Planner** and **Fridge image detection**. The app should st
 | `components/modules/FridgeDetector.js` | Fridge UI |
 | `pages/api/fridge/detect.js` | Runs Python detector, saves to user |
 | `pages/api/fridge/items.js` (and related) | Fridge CRUD if present |
-| `backend/runs/detect/smart_fridge_train/weights/best.pt` | YOLO weights (~6 MB) — required for detection |
+| `backend/runs/detect/smart_fridge_train/weights/best.pt` | **Only** this weight file is kept in git; training plots/extra runs stay local |
 | `train_fridge_model.py`, `train_diet_fridge_yolo.py` | Optional retraining |
 
 ### Shared / data used by fridge nutrition
