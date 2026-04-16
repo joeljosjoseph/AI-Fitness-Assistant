@@ -1,8 +1,7 @@
 import fs from "node:fs";
-import path from "node:path";
-import { spawn } from "node:child_process";
 import formidable from "formidable";
 import { connectDB } from "@/lib/mongodb";
+import { requestFastApi } from "@/lib/fastApiClient";
 import User from "@/models/User";
 import { findNutritionForItem } from "@/lib/nutritionLookup";
 
@@ -22,47 +21,26 @@ function parseForm(req) {
     });
 }
 
-function runDetector({ modelPath, imagePath }) {
-    return new Promise((resolve, reject) => {
-        const scriptPath = path.join(process.cwd(), "ml_api", "fridge_detect_infer.py");
-        const py = spawn("python", [
-            scriptPath,
-            "--model",
-            modelPath,
-            "--image",
-            imagePath,
-            "--conf",
-            "0.25",
-        ]);
-
-        let stdout = "";
-        let stderr = "";
-        py.stdout.on("data", (d) => {
-            stdout += d.toString();
-        });
-        py.stderr.on("data", (d) => {
-            stderr += d.toString();
-        });
-        py.on("close", (code) => {
-            if (code !== 0) {
-                reject(new Error(stderr || `Detector exited with code ${code}`));
-                return;
-            }
-            const line = stdout
-                .split(/\r?\n/)
-                .reverse()
-                .find((l) => l.startsWith("JSON_RESULT:"));
-            if (!line) {
-                reject(new Error("Detector returned no parseable JSON output."));
-                return;
-            }
-            try {
-                resolve(JSON.parse(line.replace("JSON_RESULT:", "")));
-            } catch {
-                reject(new Error("Failed to parse detector JSON output."));
-            }
-        });
+async function runDetector(imageFile) {
+    const bytes = fs.readFileSync(imageFile.filepath);
+    const formData = new FormData();
+    const blob = new Blob([bytes], {
+        type: imageFile.mimetype || "application/octet-stream",
     });
+
+    formData.append(
+        "image",
+        blob,
+        imageFile.originalFilename || "fridge-upload.jpg"
+    );
+    formData.append("conf", "0.25");
+
+    const response = await requestFastApi("/fridge/detect", {
+        method: "POST",
+        body: formData,
+    });
+    const data = await response.json();
+    return Array.isArray(data?.items) ? data.items : [];
 }
 
 export default async function handler(req, res) {
@@ -85,26 +63,7 @@ export default async function handler(req, res) {
         }
         uploadedPath = imageFile.filepath;
 
-        const modelPath = path.join(
-            process.cwd(),
-            "backend",
-            "runs",
-            "detect",
-            "smart_fridge_train",
-            "weights",
-            "best.pt"
-        );
-        if (!fs.existsSync(modelPath)) {
-            return res.status(404).json({
-                success: false,
-                error: `Model not found at ${modelPath}`,
-            });
-        }
-
-        const detections = await runDetector({
-            modelPath,
-            imagePath: uploadedPath,
-        });
+        const detections = await runDetector(imageFile);
 
         const items = detections.map((d) => ({
             name: d.name,

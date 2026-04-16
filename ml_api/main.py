@@ -1,7 +1,4 @@
-"""
-Local API matching NEXT_PUBLIC_API_URL routes used by DietPlanner, Posture, Hydration.
-Demo-quality: diet/hydration use simple heuristics; posture simulates rep counting from frames.
-"""
+"""Single FastAPI entrypoint for fitness ML and lightweight heuristic endpoints."""
 
 from __future__ import annotations
 
@@ -11,6 +8,9 @@ from typing import Any
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+
+from ml_api.diet_model import predict_gym_plan
+from ml_api.fridge_model import detect_items_from_upload
 
 app = FastAPI(title="AI Fitness Assistant — local ML API")
 
@@ -155,6 +155,13 @@ async def diet_predict(body: DietPredictIn) -> dict[str, Any]:
         f"Total: aim near {calories} kcal with {protein}g protein (adjust portions to hunger)"
     )
 
+    gym = predict_gym_plan(
+        gender=body.gender,
+        goal=body.goal,
+        weight_kg=body.weight_kg,
+        height_cm=body.height_cm,
+    )
+
     return {
         "gender": body.gender,
         "goal": body.goal,
@@ -164,7 +171,25 @@ async def diet_predict(body: DietPredictIn) -> dict[str, Any]:
         "calories": calories,
         "protein": protein,
         "meal_plan_details": meal_plan_details,
+        "gym": gym,
     }
+
+
+@app.post("/fridge/detect")
+async def fridge_detect(
+    image: UploadFile = File(...),
+    conf: float = Form(0.25),
+) -> dict[str, Any]:
+    try:
+        items = detect_items_from_upload(image, conf=conf)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    finally:
+        await image.close()
+
+    return {"items": items}
 
 
 # --- Hydration ---

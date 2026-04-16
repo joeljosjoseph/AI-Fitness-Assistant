@@ -4,8 +4,6 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "ml-api": "python -m uvicorn ml_api.main:app --host 127.0.0.1 --port 8000 --reload",
-    "train-diet-ai": "python -m ml_diet.train_diet_from_gym",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

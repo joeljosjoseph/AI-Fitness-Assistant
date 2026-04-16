@@ -19,29 +19,29 @@ def bmi_category(bmi_val: float) -> str:
 
 
 def bmi_category_to_csv(cat: str) -> str:
-    s = (cat or "").strip()
-    if s == "Normal":
+    value = (cat or "").strip()
+    if value == "Normal":
         return "Normal weight"
-    if s == "Obese":
+    if value == "Obese":
         return "Obesity"
-    return s
+    return value
 
 
 def ui_goal_to_csv_goal(goal: str) -> str:
-    s = (goal or "").strip()
-    if s == "Lose Weight":
+    value = (goal or "").strip()
+    if value == "Lose Weight":
         return "fat_burn"
-    if s in ("Get Fit", "Improve Endurance", "Build Muscle"):
+    if value in ("Get Fit", "Improve Endurance", "Build Muscle"):
         return "muscle_gain"
     return "muscle_gain"
 
 
-def norm_gender(g: str) -> str:
-    s = (g or "").strip().lower()
-    if s == "male":
+def norm_gender(gender: str) -> str:
+    value = (gender or "").strip().lower()
+    if value == "male":
         return "Male"
-    if s == "female":
+    if value == "female":
         return "Female"
-    if s == "other":
+    if value == "other":
         return "Other"
     return "Female"

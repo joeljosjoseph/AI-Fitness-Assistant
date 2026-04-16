@@ -460,7 +460,7 @@ const DietPlanner = () => {
                                     GYM plan (from your CSV)
                                 </h3>
                                 <p className="text-sm text-gray-600 mb-3">
-                                    {result.gym_source === "sklearn_rf_gym" ? (
+                                    {result.gym_source === "fastapi_ml" ? (
                                         <>
                                             Exercise and meal focus predicted by a <strong>Random Forest</strong> trained on{' '}
                                             <code className="text-xs bg-gray-100 px-1 rounded">GYM.csv</code> (same idea as training a detector model — no LLM).
@@ -469,7 +469,7 @@ const DietPlanner = () => {
                                         <>
                                             Matched by gender, goal, and BMI category from{' '}
                                             <code className="text-xs bg-gray-100 px-1 rounded">GYM.csv</code>
-                                            {result.gym_source === "csv_lookup" ? ' (train with npm run train-diet-ai to enable ML).' : ''}.
+                                            {result.gym_source === "csv_lookup" ? ' (used as a local fallback when the FastAPI ML service is unavailable).' : ''}.
                                         </>
                                     )}
                                 </p>

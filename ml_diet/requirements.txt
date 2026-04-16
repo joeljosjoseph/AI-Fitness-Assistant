@@ -1,6 +1,0 @@
-# Diet planner ML (RandomForest on data/GYM.csv) - install alongside your Python env:
-#   pip install -r ml_diet/requirements.txt
-
-pandas>=2.0.0
-scikit-learn>=1.3.0
-joblib>=1.3.0

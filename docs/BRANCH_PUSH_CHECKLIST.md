@@ -12,30 +12,30 @@ Your scope is **Diet Planner** and **Fridge image detection**. The app should st
 |------|---------|
 | `components/modules/DietPlanner.js` | UI, fridge-aware recipes, GYM / ML copy |
 | `pages/api/diet/info.js` | Dropdown options |
-| `pages/api/diet/predict.js` | BMI + targets + sklearn inference + CSV fallback + recipes |
+| `pages/api/diet/predict.js` | BMI + targets + FastAPI ML call + CSV fallback + recipes |
 | `lib/dietHeuristics.js` | Calorie / protein heuristics |
 | `lib/gymCsvIndex.js` | `GYM.csv` lookup fallback |
 | `lib/parseCsvLine.js` | CSV parsing for `GYM.csv` |
 | `lib/recipesFromFridge.js` | Fridge-based recipe templates |
-| `lib/runDietMlInfer.js` | Spawns `python -m ml_diet.diet_predict_infer` |
-| `ml_diet/` | Training + inference package |
-| `ml_diet/artifacts/diet_rf_pipeline.joblib` | Trained Random Forest (commit so clone works) |
-| `ml_diet/artifacts/diet_rf_meta.json` | Training metadata |
+| `lib/fastApiClient.js` | Server-side FastAPI client for ML-backed routes |
+| `ml_api/main.py` | Single FastAPI app entrypoint |
+| `ml_api/diet_model.py` | Diet-model inference helper |
+| `ml_api/_bmi.py` | Shared diet BMI helpers |
+| `ml_api/artifacts/diet_rf_pipeline.joblib` | Trained Random Forest artifact |
+| `ml_api/artifacts/diet_rf_meta.json` | Diet model metadata |
 | `data/GYM.csv` | Training data + CSV fallback (~16 MB) |
-| `ml_diet/requirements.txt` | `pip install -r` for diet ML |
 | `tests/DietPlanner.test.js` | Tests |
-| `package.json` | `train-diet-ai` script |
+| `package.json` | Next.js app scripts |
 
 ### Fridge (image)
 
 | Path | Purpose |
 |------|---------|
-| `ml_api/fridge_detect_infer.py` | Ultralytics inference (Windows-safe import patch) |
+| `ml_api/fridge_model.py` | Fridge-model inference helper |
 | `components/modules/FridgeDetector.js` | Fridge UI |
-| `pages/api/fridge/detect.js` | Runs Python detector, saves to user |
+| `pages/api/fridge/detect.js` | Calls FastAPI detector, saves to user |
 | `pages/api/fridge/items.js` (and related) | Fridge CRUD if present |
-| `backend/runs/detect/smart_fridge_train/weights/best.pt` | **Only** this weight file is kept in git; training plots/extra runs stay local |
-| `ml_api/train_fridge_model.py`, `ml_api/train_diet_fridge_yolo.py` | Optional retraining |
+| `backend/runs/detect/smart_fridge_train/weights/best.pt` | Fridge detector model artifact |
 
 ### Shared / data used by fridge nutrition
 
@@ -48,9 +48,8 @@ Your scope is **Diet Planner** and **Fridge image detection**. The app should st
 
 1. `npm install`
 2. `cp env.sample .env.local` and set `NEXT_PUBLIC_API_URL`, MongoDB, etc.
-3. Diet ML (optional retrain): `pip install -r ml_diet/requirements.txt` then `npm run train-diet-ai`
-4. Fridge: Python env with Ultralytics; `npm run dev` and `python` on PATH for `/api/fridge/detect`
-5. Training YOLO from scratch: `yolov8n.pt` is gitignored; Ultralytics can fetch it automatically, or download once locally.
+3. Set `NEXT_PUBLIC_API_URL` so the Next.js server can reach the deployed FastAPI service.
+4. The FastAPI service now uses `ml_api/main.py` as the single entrypoint, with separate helper files for diet and fridge model inference.
 
 ## Do not commit
 

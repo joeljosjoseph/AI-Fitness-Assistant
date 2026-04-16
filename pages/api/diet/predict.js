@@ -1,7 +1,7 @@
 import { bmi, bmiCategory, dietTargets } from "@/lib/dietHeuristics";
+import { requestFastApi } from "@/lib/fastApiClient";
 import { lookupGymRow } from "@/lib/gymCsvIndex";
 import { buildFridgeRecipes } from "@/lib/recipesFromFridge";
-import { runDietMlInfer } from "@/lib/runDietMlInfer";
 
 export default async function handler(req, res) {
     if (req.method !== "POST") {
@@ -25,18 +25,31 @@ export default async function handler(req, res) {
     const cat = bmiCategory(b);
     const targets = dietTargets(goal, w);
 
-    const ml = await runDietMlInfer({
-        gender,
-        goal,
-        weight_kg: w,
-        height_cm: h,
-    });
+    let ml = null;
+    try {
+        const response = await requestFastApi("/diet/predict", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                gender,
+                goal,
+                weight_kg: w,
+                height_cm: h,
+            }),
+        });
+        const data = await response.json();
+        if (data?.gym) {
+            ml = data.gym;
+        }
+    } catch {
+        ml = null;
+    }
 
     let gym = null;
     let gym_source = "csv_lookup";
 
     if (ml) {
-        gym_source = "sklearn_rf_gym";
+        gym_source = "fastapi_ml";
         gym = {
             exercise_schedule: ml.exercise_schedule,
             meal_plan_focus: ml.meal_plan_focus,
