@@ -27,7 +27,7 @@ export default async function handler(req, res) {
 
     let ml = null;
     try {
-        const response = await requestFastApi("/diet/predict", {
+        const response = await requestFastApi("/gym-plan/predict", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -40,6 +40,8 @@ export default async function handler(req, res) {
         const data = await response.json();
         if (data?.gym) {
             ml = data.gym;
+        } else if (data?.exercise_schedule || data?.meal_plan_focus) {
+            ml = data;
         }
     } catch {
         ml = null;
