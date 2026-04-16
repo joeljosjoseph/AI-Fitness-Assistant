@@ -1,10 +1,369 @@
 'use client';
 
-import { MessageCircle, Send, Loader2 } from 'lucide-react';
+import { MessageCircle, Send, Loader2, Dumbbell, Flame, Clock, ChevronRight } from 'lucide-react';
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createProfileSummary, processLine } from '@/utils/functions';
 import { PROFILE_QUESTIONS, SYSTEM_INSTRUCTION, WORKOUT_SYSTEM_INSTRUCTION } from '@/utils/constants';
+
+// ─── Markdown renderer ───────────────────────────────────────────────────────
+// Handles: ##/### headings, **bold**, ---dividers, - bullets, numbered lists,
+// plain paragraphs, and emojis. Replaces the old processLine-only approach.
+
+const processBoldInline = (text) => {
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, i) =>
+        part.startsWith('**') && part.endsWith('**')
+            ? <strong key={i} className="font-semibold text-gray-900">{part.slice(2, -2)}</strong>
+            : <span key={i}>{part}</span>
+    );
+};
+
+const renderMarkdown = (content) => {
+    const lines = content.split('\n');
+    const elements = [];
+    let i = 0;
+
+    while (i < lines.length) {
+        const line = lines[i];
+        const trimmed = line.trim();
+
+        // Skip empty lines
+        if (!trimmed) { i++; continue; }
+
+        // Horizontal rule
+        if (/^---+$/.test(trimmed)) {
+            elements.push(<hr key={i} className="my-3 border-gray-200" />);
+            i++; continue;
+        }
+
+        // ## Heading (plan title)
+        if (trimmed.startsWith('## ')) {
+            elements.push(
+                <h2 key={i} className="text-lg font-bold text-cyan-600 mt-4 mb-2">
+                    {processBoldInline(trimmed.slice(3))}
+                </h2>
+            );
+            i++; continue;
+        }
+
+        // ### Heading (day headers)
+        if (trimmed.startsWith('### ')) {
+            elements.push(
+                <h3 key={i} className="text-base font-bold text-gray-800 mt-5 mb-2 flex items-center gap-2">
+                    <span className="inline-block w-2 h-2 rounded-full bg-cyan-400" />
+                    {processBoldInline(trimmed.slice(4))}
+                </h3>
+            );
+            i++; continue;
+        }
+
+        // #### Heading
+        if (trimmed.startsWith('#### ')) {
+            elements.push(
+                <h4 key={i} className="text-sm font-semibold text-gray-700 mt-3 mb-1">
+                    {processBoldInline(trimmed.slice(5))}
+                </h4>
+            );
+            i++; continue;
+        }
+
+        // **Bold-only line** (e.g. **Warm-up:**)
+        if (/^\*\*.+\*\*:?$/.test(trimmed)) {
+            elements.push(
+                <p key={i} className="font-semibold text-gray-800 mt-3 mb-1">
+                    {processBoldInline(trimmed)}
+                </p>
+            );
+            i++; continue;
+        }
+
+        // Bullet list block (lines starting with - or *)
+        if (/^[-*]\s/.test(trimmed)) {
+            const bullets = [];
+            while (i < lines.length && /^[-*]\s/.test(lines[i].trim())) {
+                bullets.push(lines[i].trim().slice(2));
+                i++;
+            }
+            elements.push(
+                <ul key={`ul-${i}`} className="ml-4 mb-2 space-y-1 list-disc list-inside">
+                    {bullets.map((b, bi) => (
+                        <li key={bi} className="text-gray-700 text-sm leading-relaxed">
+                            {processBoldInline(b)}
+                        </li>
+                    ))}
+                </ul>
+            );
+            continue;
+        }
+
+        // Numbered list block
+        if (/^\d+\.\s/.test(trimmed)) {
+            const items = [];
+            while (i < lines.length && /^\d+\.\s/.test(lines[i].trim())) {
+                // Collect this item and any indented sub-lines (notes)
+                const itemText = lines[i].trim().replace(/^\d+\.\s/, '');
+                const subLines = [];
+                i++;
+                while (i < lines.length && /^\s{2,}/.test(lines[i]) && lines[i].trim()) {
+                    subLines.push(lines[i].trim());
+                    i++;
+                }
+                items.push({ text: itemText, subLines });
+            }
+            elements.push(
+                <ol key={`ol-${i}`} className="ml-2 mb-3 space-y-2">
+                    {items.map((item, ii) => (
+                        <li key={ii} className="text-gray-800 text-sm leading-relaxed">
+                            <span className="font-medium text-cyan-700 mr-1">{ii + 1}.</span>
+                            {processBoldInline(item.text)}
+                            {item.subLines.map((sl, si) => (
+                                <p key={si} className="ml-4 text-gray-500 text-xs mt-0.5">
+                                    {processBoldInline(sl.replace(/^-\s*Notes?:\s*/i, ''))}
+                                </p>
+                            ))}
+                        </li>
+                    ))}
+                </ol>
+            );
+            continue;
+        }
+
+        // Plain paragraph
+        elements.push(
+            <p key={i} className="text-gray-800 text-sm leading-relaxed mb-2">
+                {processBoldInline(trimmed)}
+            </p>
+        );
+        i++;
+    }
+
+    return elements;
+};
+
+// ─── Workout Plan Card ────────────────────────────────────────────────────────
+// Renders a nicely formatted card when a full plan is detected
+
+const WorkoutPlanCard = ({ content }) => {
+    const [openDay, setOpenDay] = useState(0);
+
+    // Detect day sections
+    const dayRegex = /###\s*Day\s*(\d+):\s*(.+)/gi;
+    const days = [];
+    let match;
+    const dayMatches = [...content.matchAll(/###\s*Day\s*(\d+):\s*(.+)/gi)];
+
+    if (dayMatches.length === 0) {
+        // No structured days found, just render markdown
+        return (
+            <div className="prose prose-sm max-w-none">
+                {renderMarkdown(content)}
+            </div>
+        );
+    }
+
+    // Split content into sections per day
+    const lines = content.split('\n');
+    let currentDay = null;
+    let headerSection = [];
+    let footerSection = [];
+    let inDays = false;
+
+    for (let i = 0; i < lines.length; i++) {
+        const dayMatch = lines[i].match(/###\s*Day\s*(\d+):\s*(.+)/i);
+        if (dayMatch) {
+            inDays = true;
+            if (currentDay) days.push(currentDay);
+            currentDay = { number: dayMatch[1], title: dayMatch[2].trim(), lines: [] };
+        } else if (!inDays) {
+            headerSection.push(lines[i]);
+        } else if (inDays && !currentDay) {
+            footerSection.push(lines[i]);
+        } else if (currentDay) {
+            // Check if we hit footer (Tips section after all days)
+            if (/^\*\*Tips\*\*|^\*\*Additional Tips\*\*/i.test(lines[i].trim()) && i > lines.length - 30) {
+                days.push(currentDay);
+                currentDay = null;
+                footerSection = lines.slice(i);
+                break;
+            }
+            currentDay.lines.push(lines[i]);
+        }
+    }
+    if (currentDay) days.push(currentDay);
+
+    return (
+        <div className="w-full space-y-3">
+            {/* Plan header */}
+            {headerSection.length > 0 && (
+                <div className="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-xl p-4 border border-cyan-100">
+                    {renderMarkdown(headerSection.join('\n'))}
+                </div>
+            )}
+
+            {/* Day tabs */}
+            {days.length > 0 && (
+                <div className="rounded-xl border border-gray-200 overflow-hidden">
+                    {/* Tab strip */}
+                    <div className="flex overflow-x-auto bg-gray-50 border-b border-gray-200">
+                        {days.map((day, idx) => (
+                            <button
+                                key={idx}
+                                onClick={() => setOpenDay(idx)}
+                                className={`flex-shrink-0 px-4 py-2.5 text-sm font-medium transition-all ${openDay === idx
+                                    ? 'bg-white text-cyan-600 border-b-2 border-cyan-500'
+                                    : 'text-gray-500 hover:text-gray-700'
+                                    }`}
+                            >
+                                Day {day.number}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Active day content */}
+                    <div className="p-4 bg-white">
+                        <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                            <Dumbbell className="w-4 h-4 text-cyan-500" />
+                            {days[openDay]?.title}
+                        </h3>
+                        <div className="space-y-1">
+                            {renderMarkdown(days[openDay]?.lines.join('\n') || '')}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Footer tips */}
+            {footerSection.length > 0 && (
+                <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
+                    {renderMarkdown(footerSection.join('\n'))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ─── Message Bubble ───────────────────────────────────────────────────────────
+
+const MessageBubble = ({ msg }) => {
+    const isAssistant = msg.role === 'assistant';
+    const isWorkoutPlan = isAssistant && msg.isWorkoutPlan;
+
+    return (
+        <div className={`flex items-start space-x-3 ${!isAssistant ? 'flex-row-reverse space-x-reverse' : ''}`}>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isAssistant
+                ? 'bg-gradient-to-br from-cyan-400 to-blue-500'
+                : 'bg-gradient-to-br from-purple-400 to-pink-500'
+                }`}>
+                {isAssistant
+                    ? <MessageCircle className="w-4 h-4 text-white" />
+                    : <span className="text-white font-semibold text-sm">U</span>
+                }
+            </div>
+
+            <div className={`rounded-2xl max-w-2xl w-full ${isAssistant
+                ? 'bg-gray-100 rounded-tl-none text-gray-800 p-4'
+                : 'bg-gradient-to-br from-cyan-400 to-blue-500 text-white rounded-tr-none p-4'
+                }`}>
+                {isAssistant ? (
+                    isWorkoutPlan
+                        ? <WorkoutPlanCard content={msg.content} />
+                        : <div>{renderMarkdown(msg.content)}</div>
+                ) : (
+                    <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// ─── Parse AI markdown into WorkoutDaySchema objects ────────────────────────
+const parseWorkoutPlanToStructured = (text, workoutDays) => {
+    const weeklySchedule = [];
+    const lines = text.split('\n');
+    let currentDay = null;
+    let currentSection = null; // 'exercises', 'warmup', 'cooldown', 'tips'
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
+
+        // Match ### Day N: Focus
+        const dayMatch = trimmed.match(/^###\s*Day\s*(\d+):\s*(.+)/i);
+        if (dayMatch) {
+            if (currentDay) weeklySchedule.push(currentDay);
+            currentDay = {
+                dayNumber: parseInt(dayMatch[1]),
+                dayName: `Day ${dayMatch[1]}`,
+                focus: dayMatch[2].trim(),
+                duration: 0,
+                description: '',
+                exercises: [],
+                warmup: '',
+                cooldown: '',
+            };
+            currentSection = 'exercises';
+            continue;
+        }
+
+        if (!currentDay) continue;
+
+        // Detect section headers
+        if (/warm[- ]?up/i.test(trimmed)) { currentSection = 'warmup'; continue; }
+        if (/cool[- ]?down/i.test(trimmed)) { currentSection = 'cooldown'; continue; }
+        if (/^(exercises?|workout|main\s+workout)/i.test(trimmed.replace(/\*\*/g, ''))) {
+            currentSection = 'exercises'; continue;
+        }
+
+        // Duration line: "Duration: 45 minutes"
+        const durationMatch = trimmed.match(/duration[:\s]+(\d+)/i);
+        if (durationMatch) { currentDay.duration = parseInt(durationMatch[1]); continue; }
+
+        // Numbered exercise: "1. Squat - 3x10, rest 60s"
+        const exerciseMatch = trimmed.match(/^\d+\.\s+(.+)/);
+        if (exerciseMatch && currentSection === 'exercises') {
+            const raw = exerciseMatch[1];
+
+            // Try to extract sets/reps: "3x10" or "3 sets x 10 reps"
+            const setsReps = raw.match(/(\d+)\s*[x×]\s*(\d+[\-–]?\d*)/i);
+            const sets = setsReps ? setsReps[1] : '';
+            const reps = setsReps ? setsReps[2] : '';
+
+            // Rest: "rest 60s" or "60 seconds rest"
+            const restMatch = raw.match(/rest[:\s]+(\d+\s*(?:s|sec|seconds?|min|minutes?))/i)
+                || raw.match(/(\d+\s*(?:s|sec|seconds?|min|minutes?))\s+rest/i);
+            const rest = restMatch ? restMatch[1] : '';
+
+            // Notes: sub-line starting with "-" or "Notes:"
+            let notes = '';
+            if (i + 1 < lines.length && /^\s{2,}/.test(lines[i + 1])) {
+                notes = lines[i + 1].trim().replace(/^-\s*Notes?:\s*/i, '');
+                i++;
+            }
+
+            // Name = everything before the first dash or set/rep
+            const name = raw.split(/\s*[-–]\s*\d+[x×]/)[0]
+                .split(/\s*[-–]\s*(sets?|reps?)/i)[0]
+                .replace(/\*\*/g, '').trim();
+
+            currentDay.exercises.push({ name, sets, reps, rest, notes, tempo: '' });
+            continue;
+        }
+
+        // Warmup / cooldown content
+        if (currentSection === 'warmup' && trimmed) {
+            currentDay.warmup += (currentDay.warmup ? '\n' : '') + trimmed;
+        }
+        if (currentSection === 'cooldown' && trimmed) {
+            currentDay.cooldown += (currentDay.cooldown ? '\n' : '') + trimmed;
+        }
+    }
+
+    if (currentDay) weeklySchedule.push(currentDay);
+    return weeklySchedule;
+};
+
+// ─── Main Chatbot Component ───────────────────────────────────────────────────
 
 const Chatbot = () => {
     const [messages, setMessages] = useState([]);
@@ -29,22 +388,25 @@ const Chatbot = () => {
         }, 0);
     };
 
+    // FIX 1: Always init with SYSTEM_INSTRUCTION, switch to WORKOUT on demand
+    const initChatSession = (systemInstruction) => {
+        const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({
+            model: 'gemini-flash-latest',
+            systemInstruction,
+        });
+        chatSessionRef.current = model.startChat({
+            history: [],
+            // FIX 3: Increased token limit so full plans aren't cut off
+            generationConfig: { maxOutputTokens: 8192, temperature: 0.7 },
+        });
+    };
+
     useEffect(() => {
         const init = async () => {
             try {
-                // Initialize Gemini
-                const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
-                const model = genAI.getGenerativeModel({
-                    model: "gemini-flash-latest",
-                    systemInstruction: collectingProfile ? SYSTEM_INSTRUCTION : WORKOUT_SYSTEM_INSTRUCTION
-                });
-
-                chatSessionRef.current = model.startChat({
-                    history: [],
-                    generationConfig: { maxOutputTokens: 3000, temperature: 0.7 }
-                });
-
-                // Check existing profile
+                // FIX 1: Init with SYSTEM_INSTRUCTION (profile collection mode)
+                initChatSession(SYSTEM_INSTRUCTION);
                 await checkExistingProfile();
             } catch (err) {
                 console.error('Gemini init error', err);
@@ -56,10 +418,10 @@ const Chatbot = () => {
 
     const checkExistingProfile = async () => {
         try {
-            const storedUserId = JSON.parse(localStorage.getItem('user'))._id;
+            const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+            const storedUserId = storedUser._id;
 
             if (!storedUserId) {
-                // No user logged in, start profile collection
                 startProfileCollection();
                 return;
             }
@@ -73,30 +435,20 @@ const Chatbot = () => {
             }
 
             const user = data.user;
-
-            // Check if essential profile data exists
-            const hasPersonalDetails = user.personalDetails?.age &&
-                user.personalDetails?.gender &&
-                user.personalDetails?.currentWeight;
-
-            const hasFitnessGoals = user.fitnessGoals?.primaryGoal &&
-                user.fitnessGoals?.fitnessLevel;
-
-            const hasSchedule = user.schedule?.workoutDaysPerWeek &&
-                user.schedule?.timePerWorkout;
+            const hasPersonalDetails = user.personalDetails?.age && user.personalDetails?.gender && user.personalDetails?.currentWeight;
+            const hasFitnessGoals = user.fitnessGoals?.primaryGoal && user.fitnessGoals?.fitnessLevel;
+            const hasSchedule = user.schedule?.workoutDaysPerWeek && user.schedule?.timePerWorkout;
 
             if (hasPersonalDetails && hasFitnessGoals && hasSchedule) {
-                // Profile exists, skip to assistant mode
                 setHasExistingProfile(true);
                 setCollectingProfile(false);
-                setMessages([
-                    {
-                        role: 'assistant',
-                        content: `Welcome back, ${user.login?.fullName || 'there'}! 👋\n\nI see you already have a profile set up. How can I help you today?\n\nYou can ask me about:\n- Workout advice and exercise tips\n- Nutrition guidance\n- Form corrections\n- Modifying your workout plan\n- Progress tracking tips\n- Any fitness-related questions`
-                    }
-                ]);
+                // FIX 1: Switch to workout assistant mode for returning users
+                initChatSession(WORKOUT_SYSTEM_INSTRUCTION);
+                setMessages([{
+                    role: 'assistant',
+                    content: `Welcome back, ${user.login?.fullName || 'there'}! 👋\n\nI see you already have a profile set up. How can I help you today?\n\nYou can ask me about:\n- **Workout advice** and exercise tips\n- **Nutrition guidance**\n- **Form corrections**\n- **Modifying** your workout plan\n- **Progress tracking** tips\n- Any fitness-related questions`,
+                }]);
             } else {
-                // Incomplete profile, collect missing data
                 startProfileCollection();
             }
         } catch (error) {
@@ -111,7 +463,7 @@ const Chatbot = () => {
         setCollectingProfile(true);
         setMessages([
             { role: 'assistant', content: "Hello! I'm your AI fitness assistant. Before we begin, let's build your fitness profile." },
-            { role: 'assistant', content: PROFILE_QUESTIONS[0].question }
+            { role: 'assistant', content: PROFILE_QUESTIONS[0].question },
         ]);
     };
 
@@ -119,240 +471,123 @@ const Chatbot = () => {
         scrollToBottom();
     }, [messages, isLoading]);
 
-    const addMessage = (role, content) => {
-        setMessages(prev => [...prev, { role, content }]);
+    const addMessage = (role, content, extra = {}) => {
+        setMessages(prev => [...prev, { role, content, ...extra }]);
     };
 
     const handleProfileAnswer = (answer) => {
         const currentKey = PROFILE_QUESTIONS[currentQuestionIndex].key;
-        setProfile(prev => ({ ...prev, [currentKey]: answer }));
+        const updatedProfile = { ...profile, [currentKey]: answer };
+        setProfile(updatedProfile);
 
         const nextIndex = currentQuestionIndex + 1;
         if (nextIndex < PROFILE_QUESTIONS.length) {
             setCurrentQuestionIndex(nextIndex);
-            addMessage("assistant", PROFILE_QUESTIONS[nextIndex].question);
+            addMessage('assistant', PROFILE_QUESTIONS[nextIndex].question);
         } else {
-            finishProfileAndRequestWorkoutPlan();
+            finishProfileAndRequestWorkoutPlan(updatedProfile);
         }
     };
 
-    const parseWorkoutPlan = (aiResponse, profile = {}) => {
-        try {
-            const workoutDays = [];
-            const tips = [];
-
-            // EXTRACT PLAN NAME
-            const structureMatch = aiResponse.match(/##\s*(.+?)(?:\n|$)/);
-            const structure = structureMatch ? structureMatch[1].trim() : "Custom Workout Plan";
-
-            // EXTRACT SUMMARY
-            const summaryMatch = aiResponse.match(/\*\*Summary:\*\*\s*([\s\S]+?)(?=\n\*\*|###|---|$)/);
-            const summary = summaryMatch ? summaryMatch[1].trim() : "";
-
-            // EXTRACT EACH DAY
-            const dayRegex = /###\s*Day\s*(\d+):\s*(.+?)\s*\(~?(\d+)\s*minutes?\)?/gi;
-            let dayMatch;
-
-            while ((dayMatch = dayRegex.exec(aiResponse)) !== null) {
-                const dayNumber = parseInt(dayMatch[1]);
-                const focus = dayMatch[2].trim();
-                const duration = parseInt(dayMatch[3]);
-
-                const dayStart = dayMatch.index;
-                const nextDayIndex = aiResponse.slice(dayStart + 1).search(/###\s*Day\s*\d+:/);
-                const dayEnd = nextDayIndex !== -1 ? dayStart + 1 + nextDayIndex : aiResponse.length;
-                const daySection = aiResponse.slice(dayStart, dayEnd);
-
-                // WARM-UP SECTION
-                const warmupMatch = daySection.match(
-                    /\*\*Warm-up:\*\*\s*([\s\S]+?)(?=\n\*\*Exercises|\n\*\*Exercise|$)/i
-                );
-                const warmup = warmupMatch ? warmupMatch[1].trim() : "";
-
-                // COOL-DOWN SECTION
-                const cooldownMatch = daySection.match(
-                    /\*\*Cool-down:\*\*\s*([\s\S]+?)(?=###|---|\*\*Additional|$)/i
-                );
-                const cooldown = cooldownMatch ? cooldownMatch[1].trim() : "";
-
-                // EXERCISES
-                const exercises = [];
-                const exerciseRegex = /\d+\.\s*\*\*(.+?)\*\*\s*[-–]\s*(.+?)(?=\n\d+\.|\n\*\*|$)/gs;
-                let exerciseMatch;
-
-                while ((exerciseMatch = exerciseRegex.exec(daySection)) !== null) {
-                    const exerciseName = exerciseMatch[1].trim();
-                    const exerciseDetails = exerciseMatch[2].trim();
-
-                    const setsMatch = exerciseDetails.match(/(\d+)\s*sets?/i);
-                    const repsMatch = exerciseDetails.match(/[×x]\s*(\d+(?:-\d+)?)\s*reps?/i);
-                    const restMatch = exerciseDetails.match(/Rest:\s*(\d+)\s*(seconds?|secs?|s)/i);
-
-                    const escapedName = exerciseName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-                    const notesMatch = daySection.match(
-                        new RegExp(
-                            `\\*\\*${escapedName}\\*\\*[^\\n]*\\n\\s*-\\s*Notes?:\\s*([\\s\\S]+?)(?=\\n\\d+\\.|\\n\\*\\*|$)`
-                        )
-                    );
-                    const notes = notesMatch ? notesMatch[1].trim() : "";
-
-                    exercises.push({
-                        name: exerciseName,
-                        sets: setsMatch ? setsMatch[1] : "",
-                        reps: repsMatch ? repsMatch[1] : "",
-                        rest: restMatch ? restMatch[1] + " seconds" : "",
-                        notes,
-                    });
-                }
-
-                workoutDays.push({
-                    dayNumber,
-                    dayName: `Day ${dayNumber}`,
-                    focus,
-                    duration,
-                    exercises,
-                    warmup,
-                    cooldown,
-                });
-            }
-
-            // ADDITIONAL TIPS
-            const tipsSection = aiResponse.match(/\*\*Additional Tips:\*\*\s*([\s\S]+)$/i);
-            if (tipsSection) {
-                const tipMatches = tipsSection[1].matchAll(/[-•]\s*(.+?)(?=\n[-•]|\n\n|$)/g);
-                for (const tip of tipMatches) {
-                    tips.push(tip[1].trim());
-                }
-            }
-
-            // REST DAYS LOGIC
-            const workoutDaysPerWeek = parseInt(profile.days_per_week) || workoutDays.length;
-            const restDays = [];
-            for (let i = workoutDaysPerWeek + 1; i <= 7; i++) {
-                restDays.push(i);
-            }
-
-            return {
-                planName: structure,
-                summary: summary.substring(0, 500),
-                fullPlan: aiResponse,
-                structure,
-                weeklySchedule: workoutDays,
-                restDays,
-                tips,
-            };
-        } catch (error) {
-            console.error("Error parsing workout plan:", error);
-            return {
-                planName: "Custom Workout Plan",
-                summary: "AI-generated workout plan based on your profile",
-                fullPlan: aiResponse,
-                structure: "Custom",
-                weeklySchedule: [],
-                restDays: [],
-                tips: [],
-            };
-        }
-    };
-
-    const finishProfileAndRequestWorkoutPlan = async () => {
+    const finishProfileAndRequestWorkoutPlan = async (finalProfile) => {
         setCollectingProfile(false);
-        addMessage("assistant", "Thanks! Generating your personalized workout plan...");
+        addMessage('assistant', '⏳ Thanks! Generating your personalized workout plan — this may take a moment...');
         setIsLoading(true);
 
         try {
-            const storedUserId = JSON.parse(localStorage.getItem('user'))._id;
-            const userData = JSON.parse(localStorage.getItem("user") || '{}');
-            const userId = storedUserId || userData?._id;
-            const email = userData?.login?.email;
+            // FIX 1: Reinitialize with WORKOUT_SYSTEM_INSTRUCTION before generating plan
+            initChatSession(SYSTEM_INSTRUCTION);
 
-            if (!userId && !email) {
-                addMessage("assistant", "Error: User not found. Please log in again.");
-                setIsLoading(false);
-                return;
-            }
-
-            const workoutDays = parseInt(profile.days_per_week) || 3;
-            const timePerWorkout = parseInt(profile.time_per_workout) || 45;
+            const workoutDays = parseInt(finalProfile.days_per_week) || 3;
+            const timePerWorkout = parseInt(finalProfile.time_per_workout) || 45;
 
             const enhancedPrompt = `Create a ${workoutDays}-day workout plan.
 
 Profile:
-- Age: ${profile.age} | Gender: ${profile.gender}
-- Weight: ${profile.weight}kg → ${profile.goalWeight || profile.weight}kg
-- Goal: ${profile.goal}
-- Level: ${profile.level}
-- Equipment: ${profile.equipment}
-- Limitations: ${profile.limitations}
+- Age: ${finalProfile.age} | Gender: ${finalProfile.gender}
+- Height: ${finalProfile.height}cm | Weight: ${finalProfile.weight}kg → ${finalProfile.goalWeight || finalProfile.weight}kg
+- Goal: ${finalProfile.goal}
+- Level: ${finalProfile.level}
+- Equipment: ${finalProfile.equipment}
+- Limitations: ${finalProfile.limitations}
 - Time: ${timePerWorkout} minutes per workout
 
-Generate ${workoutDays} complete workout days following the exact format in your instructions. Label them as Day 1, Day 2, Day 3, etc.`;
+Generate EXACTLY ${workoutDays} workout days. Follow your formatting instructions precisely. Label each as ### Day 1: [Focus], ### Day 2: [Focus], etc.`;
 
             const result = await chatSessionRef.current.sendMessage(enhancedPrompt);
             const aiWorkoutText = result.response.text();
 
-            console.log("AI Response:", aiWorkoutText);
+            const weeklySchedule = parseWorkoutPlanToStructured(aiWorkoutText, workoutDays);
 
-            const parsedWorkoutPlan = parseWorkoutPlan(aiWorkoutText, profile);
-            console.log("Parsed Workout Plan:", parsedWorkoutPlan);
+            console.log('AI Response length:', aiWorkoutText.length);
+            console.log('AI Response:', aiWorkoutText);
+
+            // FIX 2: Mark this message as a workout plan for special rendering
+            addMessage('assistant', aiWorkoutText, { isWorkoutPlan: true });
+
+            // Save to backend
+            const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+            const userId = storedUser._id;
+            const email = storedUser?.login?.email;
+
+            if (!userId && !email) {
+                addMessage('assistant', '⚠️ Workout plan generated but you need to log in to save it.');
+                setIsLoading(false);
+                return;
+            }
 
             const payload = {
                 personalDetails: {
-                    age: parseInt(profile.age) || null,
-                    gender: profile.gender || "",
-                    height: parseFloat(profile.height) || null,
-                    currentWeight: parseFloat(profile.weight) || null,
-                    targetWeight: parseFloat(profile.goalWeight || profile.weight) || null
+                    age: parseInt(finalProfile.age) || null,
+                    gender: finalProfile.gender || '',
+                    height: parseFloat(finalProfile.height) || null,
+                    currentWeight: parseFloat(finalProfile.weight) || null,
+                    targetWeight: parseFloat(finalProfile.goalWeight || finalProfile.weight) || null,
                 },
                 fitnessGoals: {
-                    primaryGoal: profile.goal || "",
-                    fitnessLevel: profile.level || "",
-                    availableEquipment: profile.equipment ? [profile.equipment] : [],
-                    injuries: (profile.limitations && profile.limitations.toLowerCase() !== "none")
-                        ? [profile.limitations]
-                        : []
+                    primaryGoal: finalProfile.goal || '',
+                    fitnessLevel: finalProfile.level || '',
+                    availableEquipment: finalProfile.equipment ? [finalProfile.equipment] : [],
+                    injuries: (finalProfile.limitations && finalProfile.limitations.toLowerCase() !== 'none')
+                        ? [finalProfile.limitations]
+                        : [],
                 },
                 schedule: {
                     workoutDaysPerWeek: workoutDays,
-                    timePerWorkout: timePerWorkout
+                    timePerWorkout: timePerWorkout,
                 },
-                workoutPlan: parsedWorkoutPlan
+                workoutPlan: {
+                    planName: `${workoutDays}-Day Workout Plan`,
+                    fullPlan: aiWorkoutText,
+                    weeklySchedule,                    // ← structured days/exercises
+                    structure: `${workoutDays} days/week`,
+                    summary: `${workoutDays}-day plan for ${finalProfile.goal}, ${timePerWorkout} min/session`,
+                },
             };
 
-            if (userId) {
-                payload.userId = userId;
-            } else {
-                payload.email = email;
-            }
+            if (userId) payload.userId = userId;
+            else payload.email = email;
 
-            console.log("Payload being sent:", JSON.stringify(payload, null, 2));
-
-            const res = await fetch("/api/users/me", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ userId, updateData: payload })
+            const res = await fetch('/api/users/me', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, updateData: payload }),
             });
 
             const data = await res.json();
-            console.log("API Response:", data);
 
             if (data.success) {
-                localStorage.setItem("user", JSON.stringify(data.user));
-                if (userId) {
-                    localStorage.setItem("userId", userId);
-                }
-                console.log("Profile and workout plan updated successfully");
-
-                addMessage("assistant", aiWorkoutText);
-                addMessage("assistant", `✅ Your ${workoutDays}-day workout plan has been generated and saved!`);
+                localStorage.setItem('user', JSON.stringify(data.user));
+                addMessage('assistant', `✅ Your **${workoutDays}-day workout plan** has been saved to your profile!`);
+                // Switch to Q&A mode now that profile is complete
+                initChatSession(WORKOUT_SYSTEM_INSTRUCTION);
             } else {
-                console.error("Failed to update profile:", data.error);
-                addMessage("assistant", aiWorkoutText);
-                addMessage("assistant", "⚠️ Workout plan generated but couldn't be saved. Please try again later.");
+                console.error('Failed to save profile:', data.error);
+                addMessage('assistant', '⚠️ Plan generated but could not be saved. Please try again later.');
             }
         } catch (error) {
-            console.error("Error in finishProfileAndRequestWorkoutPlan:", error);
-            addMessage("assistant", "Error generating your workout plan. Please try again.");
+            console.error('Error generating workout plan:', error);
+            addMessage('assistant', '❌ Error generating your workout plan. Please try again.');
         }
 
         setIsLoading(false);
@@ -362,8 +597,8 @@ Generate ${workoutDays} complete workout days following the exact format in your
         if (!input.trim() || isLoading) return;
 
         const userMsg = input.trim();
-        setInput("");
-        addMessage("user", userMsg);
+        setInput('');
+        addMessage('user', userMsg);
 
         if (collectingProfile) {
             handleProfileAnswer(userMsg);
@@ -374,21 +609,23 @@ Generate ${workoutDays} complete workout days following the exact format in your
         try {
             const result = await chatSessionRef.current.sendMessage(userMsg);
             const text = result.response.text();
-            addMessage("assistant", text);
+            addMessage('assistant', text);
         } catch (e) {
-            console.error("Chat error:", e);
-            addMessage("assistant", "I encountered an error. Please try again.");
+            console.error('Chat error:', e);
+            addMessage('assistant', '❌ I encountered an error. Please try again.');
         }
         setIsLoading(false);
     };
 
     return (
         <div className="bg-white rounded-2xl shadow-lg h-[600px] lg:h-[85vh] flex flex-col">
+            {/* Header */}
             <div className="p-6 border-b">
                 <h3 className="text-2xl font-bold text-gray-600">AI Workout Assistant</h3>
-                <p className="text-gray-600 text-sm">Powered by Google Gemini AI</p>
+                <p className="text-gray-400 text-sm">Powered by Google Gemini AI</p>
             </div>
 
+            {/* Messages */}
             <div ref={messagesContainerRef} className="flex-1 p-6 overflow-y-auto space-y-4">
                 {checkingProfile ? (
                     <div className="flex items-center justify-center h-full">
@@ -400,38 +637,20 @@ Generate ${workoutDays} complete workout days following the exact format in your
                 ) : (
                     <>
                         {messages.map((msg, i) => (
-                            <div key={i} className={`flex items-start space-x-3 ${msg.role === "user" ? "flex-row-reverse space-x-reverse" : ""}`}>
-                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${msg.role === "assistant"
-                                    ? "bg-linear-to-br from-cyan-400 to-blue-500"
-                                    : "bg-linear-to-br from-purple-400 to-pink-500"
-                                    }`}>
-                                    {msg.role === "assistant" ? (
-                                        <MessageCircle className="w-4 h-4 text-white" />
-                                    ) : (
-                                        <span className="text-white font-semibold text-sm">U</span>
-                                    )}
-                                </div>
-                                <div className={`p-4 rounded-2xl max-w-2xl ${msg.role === "assistant"
-                                    ? "bg-gray-100 rounded-tl-none text-gray-800"
-                                    : "bg-linear-to-br from-cyan-400 to-blue-500 text-white rounded-tr-none"
-                                    }`}>
-                                    {msg.role === "assistant" ? (
-                                        <div className="whitespace-pre-wrap">
-                                            {msg.content.split("\n").map((line, idx) => processLine(line, idx))}
-                                        </div>
-                                    ) : (
-                                        <p className="whitespace-pre-wrap">{msg.content}</p>
-                                    )}
-                                </div>
-                            </div>
+                            <MessageBubble key={i} msg={msg} />
                         ))}
                         {isLoading && (
                             <div className="flex items-start space-x-3">
-                                <div className="w-8 h-8 bg-linear-to-br from-cyan-400 to-blue-500 rounded-lg flex items-center justify-center">
+                                <div className="w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg flex items-center justify-center">
                                     <MessageCircle className="text-white w-4 h-4" />
                                 </div>
-                                <div className="bg-gray-100 p-4 rounded-2xl">
-                                    <Loader2 className="w-5 h-5 animate-spin text-cyan-500" />
+                                <div className="bg-gray-100 p-4 rounded-2xl rounded-tl-none">
+                                    <div className="flex items-center gap-2">
+                                        <Loader2 className="w-4 h-4 animate-spin text-cyan-500" />
+                                        <span className="text-sm text-gray-500">
+                                            {collectingProfile ? 'Processing...' : 'Generating your plan...'}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -440,14 +659,21 @@ Generate ${workoutDays} complete workout days following the exact format in your
                 )}
             </div>
 
+            {/* Input */}
             <div className="p-6 border-t flex space-x-3">
                 <input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSubmit()}
-                    placeholder={checkingProfile ? "Loading..." : collectingProfile ? "Answer the question..." : "Ask me anything about fitness..."}
+                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSubmit()}
+                    placeholder={
+                        checkingProfile
+                            ? 'Loading...'
+                            : collectingProfile
+                                ? 'Type your answer...'
+                                : 'Ask me anything about fitness...'
+                    }
                     disabled={checkingProfile}
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed text-gray-800"
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed text-gray-800 text-sm"
                 />
                 <button
                     onClick={handleSubmit}

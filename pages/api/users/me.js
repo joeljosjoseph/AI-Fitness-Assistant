@@ -15,7 +15,7 @@ export default async function handler(req, res) {
 
             const user = await User.findById(
                 userId,
-                "login personalDetails fitnessGoals schedule progress hydration fridge"
+                "login personalDetails fitnessGoals schedule progress hydration fridge workoutPlan" // ← add workoutPlan
             );
 
             if (!user) {

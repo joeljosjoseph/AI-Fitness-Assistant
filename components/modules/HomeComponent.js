@@ -9,113 +9,72 @@ const HomeComponent = ({ setActiveTab }) => {
         target: 2500,
         percentage: 0,
     });
+    const [todayWorkout, setTodayWorkout] = useState(null);
+
+    const buildHydration = (hydration) => {
+        const consumed = hydration?.currentProgress || 0;
+        const target = hydration?.dailyGoal || 2500;
+        return { consumed, target, percentage: target ? Math.round((consumed / target) * 100) : 0 };
+    };
+
+    const resolveTodayWorkout = (workoutPlan) => {
+        const schedule = workoutPlan?.weeklySchedule;
+        if (!schedule?.length) return null;
+        const idx = new Date().getDay() % schedule.length;
+        return schedule[idx] || null;
+    };
 
     useEffect(() => {
         const fetchUserData = async () => {
             try {
                 const storedUser = localStorage.getItem('user');
+                if (!storedUser || storedUser === 'undefined' || storedUser === 'null') return;
 
-                if (storedUser && storedUser !== 'undefined' && storedUser !== 'null') {
-                    try {
-                        const parsedUser = JSON.parse(storedUser);
-                        setUser(parsedUser);
+                let parsed;
+                try { parsed = JSON.parse(storedUser); } catch { localStorage.removeItem('user'); return; }
 
-                        // Set hydration data from user object directly
-                        if (parsedUser.hydration) {
-                            const consumed = parsedUser.hydration.currentProgress || 0;
-                            const target = parsedUser.hydration.dailyGoal || 2500;
-                            const percentage = target ? Math.round((consumed / target) * 100) : 0;
+                setUser(parsed);
+                setHydrationData(buildHydration(parsed.hydration));
+                setTodayWorkout(resolveTodayWorkout(parsed.workoutPlan));
 
-                            setHydrationData({
-                                consumed,
-                                target,
-                                percentage,
-                            });
-                        }
-
-                        // Fetch latest data from API if user ID exists
-                        if (parsedUser._id) {
-                            const res = await fetch(`/api/users/me?userId=${parsedUser._id}`);
-                            const data = await res.json();
-                            if (data.success && data.user) {
-                                setUser(data.user);
-                                localStorage.setItem('user', JSON.stringify(data.user));
-
-                                // Update hydration data from API response
-                                if (data.user.hydration) {
-                                    const consumed = data.user.hydration.currentProgress || 0;
-                                    const target = data.user.hydration.dailyGoal || 2500;
-                                    const percentage = target ? Math.round((consumed / target) * 100) : 0;
-
-                                    setHydrationData({
-                                        consumed,
-                                        target,
-                                        percentage,
-                                    });
-                                }
-                            }
-                        }
-                    } catch (parseError) {
-                        console.error('Error parsing user data:', parseError);
-                        localStorage.removeItem('user');
+                if (parsed._id) {
+                    const res = await fetch(`/api/users/me?userId=${parsed._id}`);
+                    const data = await res.json();
+                    if (data.success && data.user) {
+                        setUser(data.user);
+                        setHydrationData(buildHydration(data.user.hydration));
+                        setTodayWorkout(resolveTodayWorkout(data.user.workoutPlan));
+                        localStorage.setItem('user', JSON.stringify(data.user));
                     }
                 }
-            } catch (error) {
-                console.error('Error fetching user data:', error);
+            } catch (err) {
+                console.error('Error fetching user data:', err);
             } finally {
                 setLoading(false);
             }
         };
-
         fetchUserData();
     }, []);
 
-    // Refresh hydration data periodically from user object in localStorage
+    // Poll hydration from localStorage every 5s (updated by hydration tracker tab)
     useEffect(() => {
-        const refreshHydrationData = () => {
+        const refresh = () => {
             try {
-                const storedUser = localStorage.getItem('user');
-                if (storedUser && storedUser !== 'undefined' && storedUser !== 'null') {
-                    const parsedUser = JSON.parse(storedUser);
-                    if (parsedUser.hydration) {
-                        const consumed = parsedUser.hydration.currentProgress || 0;
-                        const target = parsedUser.hydration.dailyGoal || 2500;
-                        const percentage = target ? Math.round((consumed / target) * 100) : 0;
-
-                        setHydrationData({
-                            consumed,
-                            target,
-                            percentage,
-                        });
-                    }
-                }
-            } catch (error) {
-                console.error('Error refreshing hydration data:', error);
-            }
+                const s = localStorage.getItem('user');
+                if (!s || s === 'undefined' || s === 'null') return;
+                const p = JSON.parse(s);
+                if (p?.hydration) setHydrationData(buildHydration(p.hydration));
+            } catch { }
         };
-
-        // Refresh every 5 seconds to catch updates from the hydration tracker
-        const interval = setInterval(refreshHydrationData, 5000);
-
-        // Also listen for storage events (if user has multiple tabs open)
-        const handleStorageChange = (e) => {
-            if (e.key === 'user') {
-                refreshHydrationData();
-            }
-        };
-
-        window.addEventListener('storage', handleStorageChange);
-
-        return () => {
-            clearInterval(interval);
-            window.removeEventListener('storage', handleStorageChange);
-        };
+        const interval = setInterval(refresh, 5000);
+        window.addEventListener('storage', (e) => e.key === 'user' && refresh());
+        return () => { clearInterval(interval); window.removeEventListener('storage', refresh); };
     }, []);
 
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500" />
             </div>
         );
     }
@@ -136,85 +95,131 @@ const HomeComponent = ({ setActiveTab }) => {
         calories: user?.progress?.caloriesBurned || 0,
     };
 
-    const todayWorkouts = [
-        { name: "Push-ups", sets: 3, reps: 15, completed: true },
-        { name: "Squats", sets: 4, reps: 20, completed: true },
-        { name: "Plank", duration: "2 min", completed: false },
-    ];
+    // Today's exercises from real plan (max 4 shown as preview)
+    const todayExercises = todayWorkout?.exercises?.slice(0, 4) || [];
+    const hasPlan = !!todayWorkout;
 
     return (
         <div className="space-y-6">
             {/* Greeting */}
-            <h2 className="text-xl font-semibold text-gray-800">
-                Welcome back, {firstName}!
-            </h2>
+            <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-800">Welcome back, {firstName}!</h2>
+                {hasPlan && (
+                    <div className="text-right">
+                        <p className="text-xs text-gray-400 uppercase tracking-wide">Today</p>
+                        <p className="text-sm font-semibold text-cyan-600">{todayWorkout.focus}</p>
+                    </div>
+                )}
+            </div>
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Workouts */}
                 <div className="bg-white rounded-2xl p-6 shadow-lg">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="w-12 h-12 bg-cyan-100 rounded-xl flex items-center justify-center">
-                            <Dumbbell className="w-6 h-6 text-cyan-500" />
-                        </div>
+                    <div className="w-12 h-12 bg-cyan-100 rounded-xl flex items-center justify-center mb-4">
+                        <Dumbbell className="w-6 h-6 text-cyan-500" />
                     </div>
                     <h3 className="text-2xl font-bold text-gray-800">{weeklyStats.workouts}</h3>
                     <p className="text-gray-500 text-sm">Workouts completed</p>
                 </div>
 
-                {/* Total Time */}
                 <div className="bg-white rounded-2xl p-6 shadow-lg">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                            <Clock className="w-6 h-6 text-blue-500" />
-                        </div>
+                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
+                        <Clock className="w-6 h-6 text-blue-500" />
                     </div>
                     <h3 className="text-2xl font-bold text-gray-800">{weeklyStats.totalTime} min</h3>
                     <p className="text-gray-500 text-sm">Total workout time</p>
                 </div>
 
-                {/* Calories */}
                 <div className="bg-white rounded-2xl p-6 shadow-lg">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
-                            <TrendingUp className="w-6 h-6 text-orange-500" />
-                        </div>
+                    <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mb-4">
+                        <TrendingUp className="w-6 h-6 text-orange-500" />
                     </div>
                     <h3 className="text-2xl font-bold text-gray-800">{weeklyStats.calories}</h3>
                     <p className="text-gray-500 text-sm">Calories burned</p>
                 </div>
             </div>
 
-            {/* Today's Workouts & Hydration */}
+            {/* Today's Workout & Hydration */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Today's Workouts */}
-                <div className="bg-white rounded-2xl p-6 shadow-lg">
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-xl font-bold text-gray-800">Today&apos;s Workouts</h3>
+                {/* Today's Workout */}
+                <div className="bg-white rounded-2xl p-6 shadow-lg flex flex-col">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-xl font-bold text-gray-800">Today&apos;s Workout</h3>
+                        {hasPlan && todayWorkout.duration > 0 && (
+                            <span className="text-sm font-semibold text-cyan-600 bg-cyan-50 px-3 py-1 rounded-full">
+                                {todayWorkout.duration} min
+                            </span>
+                        )}
                     </div>
-                    <div className="space-y-4">
-                        {todayWorkouts.map((workout, idx) => (
-                            <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                                <div className="flex items-center space-x-4">
-                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${workout.completed ? "bg-green-100 text-green-500" : "bg-gray-200 text-gray-400"
-                                        }`}>
-                                        {workout.completed ? "✓" : <Play className="w-4 h-4" />}
-                                    </div>
-                                    <div>
-                                        <h4 className="font-semibold text-gray-800">{workout.name}</h4>
-                                        <p className="text-sm text-gray-500">
-                                            {workout.sets && `${workout.sets} sets × ${workout.reps} reps`}
-                                            {workout.duration && workout.duration}
-                                        </p>
-                                    </div>
-                                </div>
-                                <ChevronRight className="w-5 h-5 text-gray-400" />
+
+                    {hasPlan ? (
+                        <>
+                            {/* Focus badge */}
+                            <div className="mb-4 px-3 py-2 bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200 rounded-xl">
+                                <p className="text-sm font-semibold text-cyan-700">{todayWorkout.focus}</p>
+                                {todayWorkout.description && (
+                                    <p className="text-xs text-gray-500 mt-0.5">{todayWorkout.description}</p>
+                                )}
                             </div>
-                        ))}
-                    </div>
+
+                            {todayExercises.length > 0 ? (
+                                <div className="space-y-3 flex-1">
+                                    {todayExercises.map((ex, idx) => (
+                                        <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                                            <div className="flex items-center space-x-3">
+                                                <div className="w-9 h-9 rounded-lg bg-cyan-100 text-cyan-600 flex items-center justify-center font-bold text-sm shrink-0">
+                                                    {idx + 1}
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-semibold text-gray-800 text-sm">{ex.name}</h4>
+                                                    <p className="text-xs text-gray-500">
+                                                        {[ex.sets && `${ex.sets} sets`, ex.reps && `${ex.reps} reps`, ex.rest && `${ex.rest} rest`]
+                                                            .filter(Boolean).join(' · ')}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
+                                        </div>
+                                    ))}
+
+                                    {/* Show how many more */}
+                                    {(todayWorkout.exercises?.length || 0) > 4 && (
+                                        <p className="text-xs text-gray-400 text-center pt-1">
+                                            +{todayWorkout.exercises.length - 4} more exercises
+                                        </p>
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-gray-400 text-center py-4">No exercises listed for today.</p>
+                            )}
+
+                            <button
+                                onClick={() => setActiveTab('workout')}
+                                className="mt-4 w-full py-2 px-4 bg-cyan-500 hover:bg-cyan-600 text-white rounded-xl text-sm font-semibold transition-colors"
+                            >
+                                Start Workout →
+                            </button>
+                        </>
+                    ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center text-center py-6 gap-3">
+                            <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center">
+                                <Dumbbell className="w-7 h-7 text-gray-400" />
+                            </div>
+                            <div>
+                                <p className="text-gray-600 font-medium text-sm">No workout plan yet</p>
+                                <p className="text-gray-400 text-xs mt-1">Chat with the AI to generate your plan</p>
+                            </div>
+                            <button
+                                onClick={() => setActiveTab('chat')}
+                                className="px-4 py-2 bg-cyan-50 text-cyan-600 rounded-xl text-sm font-semibold hover:bg-cyan-100 transition-colors"
+                            >
+                                Generate Plan →
+                            </button>
+                        </div>
+                    )}
                 </div>
 
-                {/* Hydration - Now reads from user.hydration in database */}
+                {/* Hydration */}
                 <div className="bg-white rounded-2xl p-6 shadow-lg">
                     <div className="flex items-center justify-between mb-6">
                         <h3 className="text-xl font-bold text-gray-800">Hydration Today</h3>
@@ -226,18 +231,16 @@ const HomeComponent = ({ setActiveTab }) => {
                             <svg className="w-40 h-40 transform -rotate-90">
                                 <circle cx="80" cy="80" r="70" stroke="#e5e7eb" strokeWidth="12" fill="none" />
                                 <circle
-                                    cx="80"
-                                    cy="80"
-                                    r="70"
-                                    stroke="url(#gradient)"
+                                    cx="80" cy="80" r="70"
+                                    stroke="url(#hydGradient)"
                                     strokeWidth="12"
                                     fill="none"
                                     strokeDasharray={`${2 * Math.PI * 70}`}
-                                    strokeDashoffset={`${2 * Math.PI * 70 * (1 - hydrationData.percentage / 100)}`}
+                                    strokeDashoffset={`${2 * Math.PI * 70 * (1 - Math.min(hydrationData.percentage, 100) / 100)}`}
                                     strokeLinecap="round"
                                 />
                                 <defs>
-                                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <linearGradient id="hydGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                                         <stop offset="0%" stopColor="#22d3ee" />
                                         <stop offset="100%" stopColor="#3b82f6" />
                                     </linearGradient>
@@ -254,10 +257,14 @@ const HomeComponent = ({ setActiveTab }) => {
                                 {" / "}
                                 <span className="font-bold text-gray-800">{hydrationData.target}ml</span>
                             </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                                {hydrationData.consumed >= hydrationData.target
+                                    ? '🎉 Goal reached!'
+                                    : `${hydrationData.target - hydrationData.consumed}ml remaining`}
+                            </p>
                         </div>
                     </div>
 
-                    {/* Quick action to go to hydration tracker */}
                     <button
                         onClick={() => setActiveTab("hydration")}
                         className="w-full py-2 px-4 bg-cyan-50 hover:bg-cyan-100 text-cyan-600 rounded-lg text-sm font-medium transition-colors"
@@ -271,7 +278,7 @@ const HomeComponent = ({ setActiveTab }) => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <button
                     onClick={() => setActiveTab("camera")}
-                    className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all"
+                    className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all text-left"
                 >
                     <Camera className="w-8 h-8 mb-3" />
                     <h3 className="text-xl font-bold mb-2">Track Your Posture</h3>
@@ -280,15 +287,16 @@ const HomeComponent = ({ setActiveTab }) => {
 
                 <button
                     onClick={() => setActiveTab("chat")}
-                    className="bg-gradient-to-br from-green-500 to-teal-500 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all"
+                    className="bg-gradient-to-br from-green-500 to-teal-500 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all text-left"
                 >
                     <MessageCircle className="w-8 h-8 mb-3" />
                     <h3 className="text-xl font-bold mb-2">AI Workout Assistant</h3>
                     <p className="text-green-100 text-sm">Get personalized advice</p>
                 </button>
+
                 <button
                     onClick={() => setActiveTab("fridgeDetector")}
-                    className="bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all"
+                    className="bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all text-left"
                 >
                     <Refrigerator className="w-8 h-8 mb-3" />
                     <h3 className="text-xl font-bold mb-2">Fridge Food Detector</h3>
