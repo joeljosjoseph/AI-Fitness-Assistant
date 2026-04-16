@@ -9,5 +9,5 @@
     "BMI Category",
     "bmi"
   ],
-  "data_source": "GYM.csv"
+  "data_source": "data/GYM.csv"
 }

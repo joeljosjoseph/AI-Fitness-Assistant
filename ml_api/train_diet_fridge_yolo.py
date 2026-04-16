@@ -96,7 +96,7 @@ def train_one(
 
 
 def main() -> None:
-    root = Path(__file__).resolve().parent
+    root = Path(__file__).resolve().parents[1]
     os.chdir(root)
     project_runs = root / "backend" / "runs" / "detect"
 

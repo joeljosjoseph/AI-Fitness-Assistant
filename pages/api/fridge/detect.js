@@ -24,7 +24,7 @@ function parseForm(req) {
 
 function runDetector({ modelPath, imagePath }) {
     return new Promise((resolve, reject) => {
-        const scriptPath = path.join(process.cwd(), "fridge_detect_infer.py");
+        const scriptPath = path.join(process.cwd(), "ml_api", "fridge_detect_infer.py");
         const py = spawn("python", [
             scriptPath,
             "--model",

@@ -93,10 +93,10 @@ def _make_heartbeat_callbacks():
 
 
 def main() -> None:
-    script_dir = Path(__file__).resolve().parent
-    os.chdir(script_dir)
+    repo_root = Path(__file__).resolve().parents[1]
+    os.chdir(repo_root)
 
-    project_dir = script_dir / "backend" / "runs" / "detect"
+    project_dir = repo_root / "backend" / "runs" / "detect"
     run_name = RUN_NAME
     data_rel = Path("FridgeVision.yolov8") / "data.yaml"
     last_pt = project_dir / run_name / "weights" / "last.pt"

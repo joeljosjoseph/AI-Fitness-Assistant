@@ -1,9 +1,9 @@
 """
-Train a RandomForest on GYM.csv: (gender, goal, BMI band, numeric BMI) -> exercise + meal plan.
+Train a RandomForest on data/GYM.csv: (gender, goal, BMI band, numeric BMI) -> exercise + meal plan.
 Same workflow idea as fridge YOLO: train once, save artifacts, infer from Python.
 
 Usage (repo root):
-  pip install -r requirements-diet-ai.txt
+  pip install -r ml_diet/requirements.txt
   python -m ml_diet.train_diet_from_gym
 """
 
@@ -26,7 +26,7 @@ from sklearn.preprocessing import OneHotEncoder
 from ml_diet._bmi import bmi_category_to_csv
 
 ROOT = Path(__file__).resolve().parents[1]
-CSV_PATH = ROOT / "GYM.csv"
+CSV_PATH = ROOT / "data" / "GYM.csv"
 ART_DIR = Path(__file__).resolve().parent / "artifacts"
 MODEL_PATH = ART_DIR / "diet_rf_pipeline.joblib"
 META_PATH = ART_DIR / "diet_rf_meta.json"
@@ -114,7 +114,7 @@ def main() -> int:
         "n_classes": int(len(uniques)),
         "holdout_accuracy": round(float(acc), 4),
         "features": cat_features + num_features,
-        "data_source": "GYM.csv",
+        "data_source": "data/GYM.csv",
     }
     META_PATH.write_text(json.dumps(meta, indent=2), encoding="utf-8")
 

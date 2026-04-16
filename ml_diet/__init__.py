@@ -1,1 +1,1 @@
-"""Diet plan ML: train + infer from GYM.csv (no LLM / no Gemini)."""
+"""Diet plan ML: train + infer from data/GYM.csv (no LLM / no Gemini)."""
