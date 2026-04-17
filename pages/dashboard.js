@@ -1,9 +1,6 @@
+/* dashboard.js – redesigned with dark/light mode */
 import React, { useEffect, useState } from "react";
-import {
-  User,
-  Menu,
-  X
-} from "lucide-react";
+import { User, Menu, Sun, Moon } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import HomeComponent from "../components/modules/HomeComponent";
 import Posture from "@/components/modules/Posture";
@@ -14,146 +11,169 @@ import Workout from "@/components/modules/Workout";
 import DietPlanner from "@/components/modules/DietPlanner";
 import FridgeDetector from "@/components/modules/FridgeDetector";
 
+const TAB_LABELS = {
+  dashboard: "Dashboard",
+  workouts: "Workouts",
+  hydration: "Hydration",
+  camera: "Posture Tracker",
+  chat: "AI Assistant",
+  dietPlanner: "Diet Planner",
+  fridgeDetector: "Fridge Detector",
+  settings: "Settings",
+};
+
 export default function WorkoutDashboard() {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [firstName, setFirstName] = useState('');
+  const [firstName, setFirstName] = useState("");
   const [user, setUser] = useState(null);
+  const [darkMode, setDarkMode] = useState(
+    () => typeof window !== "undefined" && localStorage.getItem("fittrack-dark") === "true"
+  );
+
+  const toggleDark = () => {
+    setDarkMode((prev) => {
+      localStorage.setItem("fittrack-dark", String(!prev));
+      return !prev;
+    });
+  };
 
   useEffect(() => {
     const fetchUserData = async () => {
       try {
         const storedUser = localStorage.getItem("user");
-
-        // Check if user data exists and is valid
-        if (!storedUser || storedUser === 'undefined' || storedUser === 'null') {
-          console.error('No valid user data found');
-          router.push('/');
+        if (!storedUser || storedUser === "undefined" || storedUser === "null") {
+          router.push("/");
           return;
         }
-
         try {
           const userData = JSON.parse(storedUser);
-
-          if (!userData || !userData._id) {
-            console.error('Invalid user data structure');
-            router.push('/');
-            return;
-          }
-
+          if (!userData?._id) { router.push("/"); return; }
           setUser(userData);
           setFirstName(userData?.login?.fullName?.split(" ")[0] || "User");
 
-          // Optionally fetch fresh data from API
           const res = await fetch(`/api/users/me?userId=${userData._id}`);
           const data = await res.json();
-
           if (data.success && data.user) {
             setUser(data.user);
             localStorage.setItem("user", JSON.stringify(data.user));
             setFirstName(data.user?.login?.fullName?.split(" ")[0] || "User");
           }
-        } catch (parseError) {
-          console.error('Error parsing user data:', parseError);
-          localStorage.removeItem('user');
-          router.push('/');
+        } catch {
+          localStorage.removeItem("user");
+          router.push("/");
         }
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-        router.push('/');
+      } catch {
+        router.push("/");
       }
     };
-
     fetchUserData();
   }, [router]);
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-linear-to-br from-blue-50 to-cyan-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div>
+      <div className={`min-h-screen flex items-center justify-center ${darkMode ? "bg-[#0f0f0f]" : "bg-gray-50"}`}>
+        <div className="w-8 h-8 rounded-full border-2 border-gray-300 border-t-gray-700 animate-spin" />
       </div>
     );
   }
 
+  const tabLabel = TAB_LABELS[activeTab] || activeTab;
+
   return (
-    <div className="min-h-screen bg-linear-to-br from-blue-50 to-cyan-50">
+    <div className={`min-h-screen transition-colors duration-300 ${darkMode ? "bg-[#141414]" : "bg-[#f7f7f7]"}`}>
       <Sidebar
         sidebarOpen={sidebarOpen}
         activeTab={activeTab}
         setSidebarOpen={setSidebarOpen}
         setActiveTab={setActiveTab}
+        darkMode={darkMode}
+        toggleDark={toggleDark}
       />
 
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 w-10 h-10 bg-white rounded-xl shadow-lg flex items-center justify-center"
-      >
-        {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-      </button>
+      {/* Main */}
+      <main className="lg:ml-60 min-h-screen">
+        {/* Top bar */}
+        <header className={`
+          sticky top-0 z-30 flex items-center justify-between
+          px-6 py-4 border-b backdrop-blur-md
+          ${darkMode
+            ? "bg-[#141414]/80 border-white/6"
+            : "bg-[#f7f7f7]/80 border-gray-200/60"
+          }
+        `}>
+          <div className="flex items-center gap-4">
+            {/* Mobile menu */}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className={`lg:hidden p-2 rounded-xl transition-colors ${darkMode ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-gray-900 hover:bg-gray-200"}`}
+            >
+              <Menu className="w-5 h-5" />
+            </button>
 
-      {/* Main Content */}
-      <main className="lg:ml-64 p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-3xl font-bold text-gray-800">
-              Welcome, {firstName}
-            </h2>
-            <p className="text-gray-500 mt-1">
-              Let&apos;s crush your fitness goals today 💪
-            </p>
+            <div>
+              <h1 className={`text-lg font-semibold tracking-tight ${darkMode ? "text-white" : "text-gray-900"}`}>
+                {tabLabel}
+              </h1>
+              {activeTab === "dashboard" && (
+                <p className={`text-xs mt-0.5 ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
+                  Good to see you, {firstName}
+                </p>
+              )}
+            </div>
           </div>
-          <button
-            onClick={() => router.push("/profile")}
-            className="w-12 h-12 rounded-full bg-linear-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white font-semibold shadow-lg cursor-pointer hover:shadow-xl transition-all"
-          >
-            <User className="w-6 h-6" />
-          </button>
+
+          <div className="flex items-center gap-2">
+            {/* Dark mode toggle */}
+            <button
+              onClick={toggleDark}
+              style={{ background: darkMode ? "rgba(255,255,255,0.1)" : "" }}
+              className={`
+                p-2 rounded-xl transition-all duration-200 border
+                ${darkMode
+                  ? "text-gray-200 border-white/20 hover:text-white"
+                  : "bg-gray-100 text-gray-600 border-gray-200 hover:text-gray-900 hover:bg-gray-200"
+                }
+              `}
+              aria-label="Toggle dark mode"
+            >
+              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+
+            {/* Profile */}
+            <button
+              onClick={() => router.push("/profile")}
+              className={`
+                w-9 h-9 rounded-xl flex items-center justify-center
+                transition-all duration-200 font-medium text-sm
+                ${darkMode
+                  ? "bg-white text-gray-900 hover:bg-gray-100"
+                  : "bg-gray-900 text-white hover:bg-gray-700"
+                }
+              `}
+            >
+              <User className="w-4 h-4" />
+            </button>
+          </div>
+        </header>
+
+        {/* Content */}
+        <div className="p-6">
+          {activeTab === "dashboard" && <HomeComponent setActiveTab={setActiveTab} darkMode={darkMode} />}
+          {activeTab === "workouts" && <Workout darkMode={darkMode} />}
+          {activeTab === "hydration" && <Hydration darkMode={darkMode} />}
+          {activeTab === "camera" && <Posture darkMode={darkMode} />}
+          {activeTab === "chat" && <Chatbot darkMode={darkMode} />}
+          {activeTab === "dietPlanner" && <DietPlanner darkMode={darkMode} />}
+          {activeTab === "fridgeDetector" && <FridgeDetector setActiveTab={setActiveTab} darkMode={darkMode} />}
+
+          {!Object.keys(TAB_LABELS).includes(activeTab) && (
+            <div className={`rounded-2xl p-10 text-center ${darkMode ? "bg-white/4 text-gray-400" : "bg-white text-gray-500"}`}>
+              <p className="font-medium">{activeTab} — coming soon</p>
+            </div>
+          )}
         </div>
-
-        {/* Dashboard Content */}
-        {activeTab === "dashboard" && (
-          <HomeComponent setActiveTab={setActiveTab} />
-        )}
-
-        {/* Workouts Content */}
-        {activeTab === "workouts" && (
-          <Workout />
-        )}
-
-        {/* Hydration Content */}
-        {activeTab === "hydration" && (
-          <Hydration />
-        )}
-
-        {/* Camera/Posture Tracker Tab */}
-        {activeTab === "camera" && (
-          <Posture />
-        )}
-
-        {/* Chat/AI Assistant Tab */}
-        {activeTab === "chat" && (
-          <Chatbot />
-        )}
-        {/* Diet Planner Tab */}
-        {activeTab === "dietPlanner" && (
-          <DietPlanner />
-        )}
-        {activeTab === "fridgeDetector" && (
-          <FridgeDetector setActiveTab={setActiveTab} />
-        )}
-
-        {/* Other tabs placeholder */}
-        {!["dashboard", "camera", "chat", "hydration", "workouts", "dietPlanner", "fridgeDetector"].includes(activeTab) && (
-          <div className="bg-white rounded-2xl p-8 shadow-lg">
-            <h3 className="text-2xl font-bold text-gray-800 mb-4 capitalize">
-              {activeTab}
-            </h3>
-            <p className="text-gray-600">This section is coming soon!</p>
-          </div>
-        )}
       </main>
     </div>
   );

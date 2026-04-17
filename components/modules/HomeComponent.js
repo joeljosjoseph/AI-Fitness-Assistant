@@ -1,42 +1,65 @@
+/* HomeComponent.js */
 import React, { useEffect, useState } from "react";
-import { Camera, ChevronRight, Clock, Droplets, Dumbbell, MessageCircle, Play, Refrigerator, TrendingUp } from 'lucide-react';
+import { Camera, ChevronRight, Clock, Droplets, Dumbbell, MessageCircle, Refrigerator, Flame } from "lucide-react";
 
-const HomeComponent = ({ setActiveTab }) => {
+const buildHydration = (hydration) => {
+    const consumed = hydration?.currentProgress || 0;
+    const target = hydration?.dailyGoal || 2500;
+    return { consumed, target, percentage: target ? Math.round((consumed / target) * 100) : 0 };
+};
+
+const resolveTodayWorkout = (workoutPlan) => {
+    const schedule = workoutPlan?.weeklySchedule;
+    if (!schedule?.length) return null;
+    return schedule[new Date().getDay() % schedule.length] || null;
+};
+
+/* ── StatCard: small, inline, self-contained width ── */
+const StatCard = ({ icon: Icon, label, value, iconBg, darkMode }) => (
+    <div className={`rounded-2xl p-4 flex items-center gap-3 ${darkMode
+            ? "bg-[#1c1c1c] border border-[#2a2a2a]"
+            : "bg-white border border-gray-200"
+        }`}>
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
+            <Icon className="w-4 h-4 text-white" strokeWidth={2} />
+        </div>
+        <div className="min-w-0">
+            <p className={`text-lg font-bold leading-none tracking-tight ${darkMode ? "text-white" : "text-gray-900"}`}>
+                {value}
+            </p>
+            <p className={`text-[11px] mt-0.5 truncate ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{label}</p>
+        </div>
+    </div>
+);
+
+/* ── QuickAction ── */
+const QuickAction = ({ icon: Icon, title, subtitle, gradient, onClick }) => (
+    <button onClick={onClick}
+        className={`w-full text-left rounded-2xl p-4 text-white transition-all hover:opacity-90 active:scale-[0.99] ${gradient}`}
+    >
+        <Icon className="w-5 h-5 mb-2.5 opacity-90" strokeWidth={1.8} />
+        <p className="font-semibold text-sm">{title}</p>
+        <p className="text-[11px] opacity-65 mt-0.5">{subtitle}</p>
+    </button>
+);
+
+/* ── HomeComponent ── */
+const HomeComponent = ({ setActiveTab, darkMode }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [hydrationData, setHydrationData] = useState({
-        consumed: 0,
-        target: 2500,
-        percentage: 0,
-    });
+    const [hydrationData, setHydrationData] = useState({ consumed: 0, target: 2500, percentage: 0 });
     const [todayWorkout, setTodayWorkout] = useState(null);
-
-    const buildHydration = (hydration) => {
-        const consumed = hydration?.currentProgress || 0;
-        const target = hydration?.dailyGoal || 2500;
-        return { consumed, target, percentage: target ? Math.round((consumed / target) * 100) : 0 };
-    };
-
-    const resolveTodayWorkout = (workoutPlan) => {
-        const schedule = workoutPlan?.weeklySchedule;
-        if (!schedule?.length) return null;
-        const idx = new Date().getDay() % schedule.length;
-        return schedule[idx] || null;
-    };
 
     useEffect(() => {
         const fetchUserData = async () => {
             try {
-                const storedUser = localStorage.getItem('user');
-                if (!storedUser || storedUser === 'undefined' || storedUser === 'null') return;
-
+                const storedUser = localStorage.getItem("user");
+                if (!storedUser || storedUser === "undefined" || storedUser === "null") return;
                 let parsed;
-                try { parsed = JSON.parse(storedUser); } catch { localStorage.removeItem('user'); return; }
-
+                try { parsed = JSON.parse(storedUser); } catch { localStorage.removeItem("user"); return; }
                 setUser(parsed);
                 setHydrationData(buildHydration(parsed.hydration));
                 setTodayWorkout(resolveTodayWorkout(parsed.workoutPlan));
-
                 if (parsed._id) {
                     const res = await fetch(`/api/users/me?userId=${parsed._id}`);
                     const data = await res.json();
@@ -44,50 +67,45 @@ const HomeComponent = ({ setActiveTab }) => {
                         setUser(data.user);
                         setHydrationData(buildHydration(data.user.hydration));
                         setTodayWorkout(resolveTodayWorkout(data.user.workoutPlan));
-                        localStorage.setItem('user', JSON.stringify(data.user));
+                        localStorage.setItem("user", JSON.stringify(data.user));
                     }
                 }
-            } catch (err) {
-                console.error('Error fetching user data:', err);
-            } finally {
-                setLoading(false);
-            }
+            } catch (err) { console.error(err); }
+            finally { setLoading(false); }
         };
         fetchUserData();
     }, []);
 
-    // Poll hydration from localStorage every 5s (updated by hydration tracker tab)
     useEffect(() => {
         const refresh = () => {
             try {
-                const s = localStorage.getItem('user');
-                if (!s || s === 'undefined' || s === 'null') return;
+                const s = localStorage.getItem("user");
+                if (!s || s === "undefined" || s === "null") return;
                 const p = JSON.parse(s);
                 if (p?.hydration) setHydrationData(buildHydration(p.hydration));
             } catch { }
         };
-        const interval = setInterval(refresh, 5000);
-        window.addEventListener('storage', (e) => e.key === 'user' && refresh());
-        return () => { clearInterval(interval); window.removeEventListener('storage', refresh); };
+        const id = setInterval(refresh, 5000);
+        window.addEventListener("storage", (e) => e.key === "user" && refresh());
+        return () => { clearInterval(id); window.removeEventListener("storage", refresh); };
     }, []);
 
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500" />
+                <div className="w-7 h-7 rounded-full border-2 border-gray-300 border-t-gray-700 animate-spin" />
             </div>
         );
     }
 
     if (!user) {
         return (
-            <div className="bg-white rounded-2xl p-8 shadow-lg text-center">
-                <p className="text-gray-600">No user data found. Please log in.</p>
+            <div className={`rounded-2xl p-8 text-center text-sm ${darkMode ? "bg-[#1c1c1c] text-gray-400" : "bg-white border border-gray-200 text-gray-500"
+                }`}>
+                No user data found. Please log in.
             </div>
         );
     }
-
-    const firstName = user?.login?.fullName?.split(" ")[0] || "User";
 
     const weeklyStats = {
         workouts: user?.progress?.workoutsCompleted || 0,
@@ -95,58 +113,48 @@ const HomeComponent = ({ setActiveTab }) => {
         calories: user?.progress?.caloriesBurned || 0,
     };
 
-    // Today's exercises from real plan (max 4 shown as preview)
-    const todayExercises = todayWorkout?.exercises?.slice(0, 4) || [];
     const hasPlan = !!todayWorkout;
+    const todayExercises = todayWorkout?.exercises?.slice(0, 4) || [];
+    const extraCount = (todayWorkout?.exercises?.length || 0) - 4;
+
+    // Theme tokens — no Tailwind opacity shorthand, all explicit
+    const dm = darkMode;
+    const card = dm ? "bg-[#1c1c1c] border border-[#2a2a2a]" : "bg-white border border-gray-200";
+    const heading = dm ? "text-white" : "text-gray-900";
+    const muted = dm ? "text-gray-500" : "text-gray-400";
+    const subtle = dm ? "bg-[#242424]" : "bg-gray-50 border border-gray-100";
+    const exNumCls = dm ? "bg-[#2e2e2e] text-gray-400" : "bg-gray-100 text-gray-500";
+    const badgeCls = dm ? "bg-[#2a2a2a] text-gray-400" : "bg-gray-100 text-gray-500";
+    const btnPrimary = dm ? "bg-white text-gray-900 hover:bg-gray-100" : "bg-gray-900 text-white hover:bg-gray-800";
+    const btnSecondary = dm ? "bg-[#242424] text-gray-300 hover:bg-[#2e2e2e] border border-[#2e2e2e]" : "bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200";
+
+    const hydPct = Math.min(hydrationData.percentage, 100);
+    const R = 44;
+    const circ = 2 * Math.PI * R;
+    const offset = circ * (1 - hydPct / 100);
+    // ring track color — visible in both modes
+    const trackColor = dm ? "#2a2a2a" : "#e5e7eb";
+    const progressColor = dm ? "#60a5fa" : "#2563eb";
 
     return (
-        <div className="space-y-6">
-            {/* Greeting */}
-            <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-800">Welcome back, {firstName}!</h2>
-                {hasPlan && (
-                    <div className="text-right">
-                        <p className="text-xs text-gray-400 uppercase tracking-wide">Today</p>
-                        <p className="text-sm font-semibold text-cyan-600">{todayWorkout.focus}</p>
-                    </div>
-                )}
+        <div className="space-y-4">
+
+            {/* ── Stat cards: auto-fit so they shrink to content, not stretch ── */}
+            <div className="grid grid-cols-3 gap-3">
+                <StatCard icon={Dumbbell} label="Workouts completed" value={weeklyStats.workouts} iconBg="bg-gray-800" darkMode={dm} />
+                <StatCard icon={Clock} label="Total minutes" value={weeklyStats.totalTime} iconBg="bg-blue-500" darkMode={dm} />
+                <StatCard icon={Flame} label="Calories burned" value={weeklyStats.calories} iconBg="bg-orange-500" darkMode={dm} />
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white rounded-2xl p-6 shadow-lg">
-                    <div className="w-12 h-12 bg-cyan-100 rounded-xl flex items-center justify-center mb-4">
-                        <Dumbbell className="w-6 h-6 text-cyan-500" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-gray-800">{weeklyStats.workouts}</h3>
-                    <p className="text-gray-500 text-sm">Workouts completed</p>
-                </div>
+            {/* ── Workout + Hydration ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-                <div className="bg-white rounded-2xl p-6 shadow-lg">
-                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
-                        <Clock className="w-6 h-6 text-blue-500" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-gray-800">{weeklyStats.totalTime} min</h3>
-                    <p className="text-gray-500 text-sm">Total workout time</p>
-                </div>
-
-                <div className="bg-white rounded-2xl p-6 shadow-lg">
-                    <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mb-4">
-                        <TrendingUp className="w-6 h-6 text-orange-500" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-gray-800">{weeklyStats.calories}</h3>
-                    <p className="text-gray-500 text-sm">Calories burned</p>
-                </div>
-            </div>
-
-            {/* Today's Workout & Hydration */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Today's Workout */}
-                <div className="bg-white rounded-2xl p-6 shadow-lg flex flex-col">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-xl font-bold text-gray-800">Today&apos;s Workout</h3>
+                <div className={`rounded-2xl p-5 flex flex-col ${card}`}>
+                    <div className="flex items-center justify-between mb-3">
+                        <p className={`text-sm font-semibold ${heading}`}>Today&apos;s Workout</p>
                         {hasPlan && todayWorkout.duration > 0 && (
-                            <span className="text-sm font-semibold text-cyan-600 bg-cyan-50 px-3 py-1 rounded-full">
+                            <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full ${badgeCls}`}>
                                 {todayWorkout.duration} min
                             </span>
                         )}
@@ -154,65 +162,49 @@ const HomeComponent = ({ setActiveTab }) => {
 
                     {hasPlan ? (
                         <>
-                            {/* Focus badge */}
-                            <div className="mb-4 px-3 py-2 bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200 rounded-xl">
-                                <p className="text-sm font-semibold text-cyan-700">{todayWorkout.focus}</p>
-                                {todayWorkout.description && (
-                                    <p className="text-xs text-gray-500 mt-0.5">{todayWorkout.description}</p>
+                            {todayWorkout.focus && (
+                                <p className={`text-[10px] font-semibold uppercase tracking-widest mb-3 ${muted}`}>
+                                    {todayWorkout.focus}
+                                </p>
+                            )}
+                            <div className="space-y-2 flex-1">
+                                {todayExercises.map((ex, idx) => (
+                                    <div key={idx} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${subtle}`}>
+                                        <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0 ${exNumCls}`}>
+                                            {idx + 1}
+                                        </span>
+                                        <div className="flex-1 min-w-0">
+                                            <p className={`text-[13px] font-medium truncate ${heading}`}>{ex.name}</p>
+                                            <p className={`text-[11px] mt-0.5 ${muted}`}>
+                                                {[ex.sets && `${ex.sets} sets`, ex.reps && `${ex.reps} reps`, ex.rest && `${ex.rest} rest`]
+                                                    .filter(Boolean).join(" · ")}
+                                            </p>
+                                        </div>
+                                        <ChevronRight className={`w-3.5 h-3.5 shrink-0 ${muted}`} />
+                                    </div>
+                                ))}
+                                {extraCount > 0 && (
+                                    <p className={`text-[11px] text-center py-1 ${muted}`}>+{extraCount} more exercises</p>
                                 )}
                             </div>
-
-                            {todayExercises.length > 0 ? (
-                                <div className="space-y-3 flex-1">
-                                    {todayExercises.map((ex, idx) => (
-                                        <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                                            <div className="flex items-center space-x-3">
-                                                <div className="w-9 h-9 rounded-lg bg-cyan-100 text-cyan-600 flex items-center justify-center font-bold text-sm shrink-0">
-                                                    {idx + 1}
-                                                </div>
-                                                <div>
-                                                    <h4 className="font-semibold text-gray-800 text-sm">{ex.name}</h4>
-                                                    <p className="text-xs text-gray-500">
-                                                        {[ex.sets && `${ex.sets} sets`, ex.reps && `${ex.reps} reps`, ex.rest && `${ex.rest} rest`]
-                                                            .filter(Boolean).join(' · ')}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
-                                        </div>
-                                    ))}
-
-                                    {/* Show how many more */}
-                                    {(todayWorkout.exercises?.length || 0) > 4 && (
-                                        <p className="text-xs text-gray-400 text-center pt-1">
-                                            +{todayWorkout.exercises.length - 4} more exercises
-                                        </p>
-                                    )}
-                                </div>
-                            ) : (
-                                <p className="text-sm text-gray-400 text-center py-4">No exercises listed for today.</p>
-                            )}
-
                             <button
-                                onClick={() => setActiveTab('workout')}
-                                className="mt-4 w-full py-2 px-4 bg-cyan-500 hover:bg-cyan-600 text-white rounded-xl text-sm font-semibold transition-colors"
+                                onClick={() => setActiveTab("workouts")}
+                                className={`mt-4 w-full py-2.5 rounded-xl text-sm font-semibold transition-all ${btnPrimary}`}
                             >
-                                Start Workout →
+                                Start Workout
                             </button>
                         </>
                     ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-center py-6 gap-3">
-                            <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center">
-                                <Dumbbell className="w-7 h-7 text-gray-400" />
+                        <div className="flex-1 flex flex-col items-center justify-center text-center py-8 gap-3">
+                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${subtle}`}>
+                                <Dumbbell className={`w-5 h-5 ${muted}`} />
                             </div>
                             <div>
-                                <p className="text-gray-600 font-medium text-sm">No workout plan yet</p>
-                                <p className="text-gray-400 text-xs mt-1">Chat with the AI to generate your plan</p>
+                                <p className={`text-sm font-medium ${heading}`}>No plan yet</p>
+                                <p className={`text-[11px] mt-0.5 ${muted}`}>Chat with the AI to generate one</p>
                             </div>
-                            <button
-                                onClick={() => setActiveTab('chat')}
-                                className="px-4 py-2 bg-cyan-50 text-cyan-600 rounded-xl text-sm font-semibold hover:bg-cyan-100 transition-colors"
-                            >
+                            <button onClick={() => setActiveTab("chat")}
+                                className={`px-4 py-2 rounded-xl text-xs font-semibold transition-colors ${btnSecondary}`}>
                                 Generate Plan →
                             </button>
                         </div>
@@ -220,89 +212,80 @@ const HomeComponent = ({ setActiveTab }) => {
                 </div>
 
                 {/* Hydration */}
-                <div className="bg-white rounded-2xl p-6 shadow-lg">
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-xl font-bold text-gray-800">Hydration Today</h3>
-                        <Droplets className="w-6 h-6 text-cyan-500" />
+                <div className={`rounded-2xl p-5 flex flex-col ${card}`}>
+                    <div className="flex items-center justify-between mb-4">
+                        <p className={`text-sm font-semibold ${heading}`}>Hydration</p>
+                        <Droplets className={`w-4 h-4 ${muted}`} />
                     </div>
 
-                    <div className="flex flex-col items-center mb-6">
-                        <div className="relative w-40 h-40">
-                            <svg className="w-40 h-40 transform -rotate-90">
-                                <circle cx="80" cy="80" r="70" stroke="#e5e7eb" strokeWidth="12" fill="none" />
+                    {/* Ring + info side by side */}
+                    <div className="flex items-center gap-6 flex-1">
+                        {/* SVG ring — explicit colors, always visible */}
+                        <div className="relative shrink-0" style={{ width: 108, height: 108 }}>
+                            <svg width="108" height="108" viewBox="0 0 108 108" style={{ transform: "rotate(-90deg)" }}>
+                                <circle cx="54" cy="54" r={R} fill="none" strokeWidth="8" stroke={trackColor} />
                                 <circle
-                                    cx="80" cy="80" r="70"
-                                    stroke="url(#hydGradient)"
-                                    strokeWidth="12"
-                                    fill="none"
-                                    strokeDasharray={`${2 * Math.PI * 70}`}
-                                    strokeDashoffset={`${2 * Math.PI * 70 * (1 - Math.min(hydrationData.percentage, 100) / 100)}`}
+                                    cx="54" cy="54" r={R}
+                                    fill="none" strokeWidth="8"
+                                    stroke={progressColor}
                                     strokeLinecap="round"
+                                    strokeDasharray={circ}
+                                    strokeDashoffset={offset}
+                                    style={{ transition: "stroke-dashoffset 0.7s ease" }}
                                 />
-                                <defs>
-                                    <linearGradient id="hydGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                        <stop offset="0%" stopColor="#22d3ee" />
-                                        <stop offset="100%" stopColor="#3b82f6" />
-                                    </linearGradient>
-                                </defs>
                             </svg>
                             <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                <span className="text-3xl font-bold text-gray-800">{hydrationData.percentage}%</span>
-                                <span className="text-sm text-gray-500">of daily goal</span>
+                                <span className={`text-lg font-bold leading-none ${heading}`}>{hydPct}%</span>
+                                <span className={`text-[9px] mt-0.5 ${muted}`}>of goal</span>
                             </div>
                         </div>
-                        <div className="mt-4 text-center">
-                            <p className="text-gray-600">
-                                <span className="font-bold text-cyan-500">{hydrationData.consumed}ml</span>
-                                {" / "}
-                                <span className="font-bold text-gray-800">{hydrationData.target}ml</span>
-                            </p>
-                            <p className="text-xs text-gray-400 mt-1">
-                                {hydrationData.consumed >= hydrationData.target
-                                    ? '🎉 Goal reached!'
-                                    : `${hydrationData.target - hydrationData.consumed}ml remaining`}
-                            </p>
+
+                        {/* Numbers */}
+                        <div className="flex-1 space-y-4">
+                            <div>
+                                <p className={`text-[10px] font-semibold uppercase tracking-widest mb-1 ${muted}`}>Consumed</p>
+                                <p className={`text-2xl font-bold leading-none tracking-tight ${heading}`}>
+                                    {hydrationData.consumed}
+                                    <span className={`text-sm font-normal ml-1 ${muted}`}>ml</span>
+                                </p>
+                            </div>
+                            <div>
+                                <p className={`text-[10px] font-semibold uppercase tracking-widest mb-1 ${muted}`}>Goal</p>
+                                <p className={`text-2xl font-bold leading-none tracking-tight ${heading}`}>
+                                    {hydrationData.target}
+                                    <span className={`text-sm font-normal ml-1 ${muted}`}>ml</span>
+                                </p>
+                            </div>
+                            {/* Mini progress bar */}
+                            <div>
+                                <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: trackColor }}>
+                                    <div className="h-full rounded-full" style={{ width: `${hydPct}%`, background: progressColor, transition: "width 0.7s ease" }} />
+                                </div>
+                                <p className={`text-[11px] mt-1.5 ${muted}`}>
+                                    {hydrationData.consumed >= hydrationData.target
+                                        ? "🎉 Daily goal reached!"
+                                        : `${hydrationData.target - hydrationData.consumed} ml remaining`}
+                                </p>
+                            </div>
                         </div>
                     </div>
 
                     <button
                         onClick={() => setActiveTab("hydration")}
-                        className="w-full py-2 px-4 bg-cyan-50 hover:bg-cyan-100 text-cyan-600 rounded-lg text-sm font-medium transition-colors"
+                        className={`mt-4 w-full py-2.5 rounded-xl text-sm font-medium transition-all ${btnSecondary}`}
                     >
-                        Update Hydration →
+                        Update Hydration
                     </button>
                 </div>
             </div>
 
-            {/* Quick Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <button
-                    onClick={() => setActiveTab("camera")}
-                    className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all text-left"
-                >
-                    <Camera className="w-8 h-8 mb-3" />
-                    <h3 className="text-xl font-bold mb-2">Track Your Posture</h3>
-                    <p className="text-purple-100 text-sm">Use AI to analyze your form</p>
-                </button>
-
-                <button
-                    onClick={() => setActiveTab("chat")}
-                    className="bg-gradient-to-br from-green-500 to-teal-500 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all text-left"
-                >
-                    <MessageCircle className="w-8 h-8 mb-3" />
-                    <h3 className="text-xl font-bold mb-2">AI Workout Assistant</h3>
-                    <p className="text-green-100 text-sm">Get personalized advice</p>
-                </button>
-
-                <button
-                    onClick={() => setActiveTab("fridgeDetector")}
-                    className="bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all text-left"
-                >
-                    <Refrigerator className="w-8 h-8 mb-3" />
-                    <h3 className="text-xl font-bold mb-2">Fridge Food Detector</h3>
-                    <p className="text-orange-100 text-sm">Upload fridge photo and detect items</p>
-                </button>
+            {/* ── Quick Actions ── */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <QuickAction icon={Camera} title="Posture Tracker" subtitle="AI-powered form analysis" gradient="bg-gradient-to-br from-violet-500 to-purple-600" onClick={() => setActiveTab("camera")} />
+                <QuickAction icon={MessageCircle} title="AI Assistant" subtitle="Personalized workout advice" gradient="bg-gradient-to-br from-blue-500 to-cyan-500" onClick={() => setActiveTab("chat")} />
+                <QuickAction icon={Refrigerator} title="Fridge Detector" subtitle="Scan & get meal ideas" gradient="bg-gradient-to-br from-orange-400 to-rose-500" onClick={() => setActiveTab("fridgeDetector")} />
             </div>
+
         </div>
     );
 };
