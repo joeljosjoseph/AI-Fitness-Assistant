@@ -20,12 +20,12 @@ const PostureCam = ({ darkMode = false }) => {
 
     // ── Theme tokens ──
     const dm = darkMode;
-    const card = dm ? 'bg-[#1c1c1c] border border-[#2a2a2a]' : 'bg-white border border-gray-200';
+    const card = dm ? 'bg-[#1c1c1c] border border-[#2a2a2a]' : 'bg-[#e6e6e6] border border-gray-200';
     const heading = dm ? 'text-white' : 'text-gray-900';
     const muted = dm ? 'text-gray-500' : 'text-gray-400';
     const subtle = dm ? 'bg-[#242424] border border-[#2e2e2e]' : 'bg-gray-50 border border-gray-100';
-    const btnPrimary = dm ? 'bg-white text-gray-900 hover:bg-gray-100' : 'bg-gray-900 text-white hover:bg-gray-800';
-    const btnSecondary = dm ? 'bg-[#242424] text-gray-300 hover:bg-[#2e2e2e] border border-[#2e2e2e]' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200';
+    const btnPrimary = dm ? 'bg-white text-gray-900 hover:bg-gray-100 cursor-pointer' : 'bg-gray-900 text-white hover:bg-gray-800 cursor-pointer';
+    const btnSecondary = dm ? 'bg-[#242424] text-gray-300 hover:bg-[#2e2e2e] border border-[#2e2e2e] cursor-pointer' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 cursor-pointer';
     const inputCls = dm
         ? 'bg-[#242424] border border-[#2e2e2e] text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-40'
         : 'bg-white border border-gray-200 text-gray-800 focus:border-gray-400 focus:ring-1 focus:ring-gray-400 disabled:bg-gray-50 disabled:opacity-60';
@@ -217,17 +217,17 @@ const PostureCam = ({ darkMode = false }) => {
                 <div className={`p-4 flex gap-3 border-t ${divider}`}>
                     {!isTracking ? (
                         <button onClick={handleStart}
-                            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ${btnPrimary}`}>
+                            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${btnPrimary}`}>
                             <PlayCircle className="w-4 h-4" />Start Tracking
                         </button>
                     ) : (
                         <>
                             <button onClick={handleStop}
-                                className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ${dm ? 'bg-red-900/30 text-red-400 hover:bg-red-900/50 border border-red-800/40' : 'bg-red-500 text-white hover:bg-red-600'}`}>
+                                className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${dm ? 'bg-red-900/30 text-red-400 hover:bg-red-900/50 border border-red-800/40' : 'bg-red-500 text-white hover:bg-red-600'}`}>
                                 <StopCircle className="w-4 h-4" />Stop
                             </button>
                             <button onClick={handleReset}
-                                className={`py-2.5 px-5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ${btnSecondary}`}>
+                                className={`py-2.5 px-5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${btnSecondary}`}>
                                 <RotateCcw className="w-4 h-4" />Reset
                             </button>
                         </>

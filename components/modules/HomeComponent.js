@@ -17,8 +17,8 @@ const resolveTodayWorkout = (workoutPlan) => {
 /* ── StatCard: small, inline, self-contained width ── */
 const StatCard = ({ icon: Icon, label, value, iconBg, darkMode }) => (
     <div className={`rounded-2xl p-4 flex items-center gap-3 ${darkMode
-            ? "bg-[#1c1c1c] border border-[#2a2a2a]"
-            : "bg-white border border-gray-200"
+        ? "bg-[#1c1c1c] border border-[#2a2a2a]"
+        : "bg-[#e6e6e6] border border-gray-200"
         }`}>
         <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
             <Icon className="w-4 h-4 text-white" strokeWidth={2} />
@@ -35,7 +35,7 @@ const StatCard = ({ icon: Icon, label, value, iconBg, darkMode }) => (
 /* ── QuickAction ── */
 const QuickAction = ({ icon: Icon, title, subtitle, gradient, onClick }) => (
     <button onClick={onClick}
-        className={`w-full text-left rounded-2xl p-4 text-white transition-all hover:opacity-90 active:scale-[0.99] ${gradient}`}
+        className={`w-full text-left rounded-2xl p-4 text-white transition-all hover:opacity-90 cursor-pointer active:scale-[0.99] ${gradient}`}
     >
         <Icon className="w-5 h-5 mb-2.5 opacity-90" strokeWidth={1.8} />
         <p className="font-semibold text-sm">{title}</p>
@@ -100,7 +100,7 @@ const HomeComponent = ({ setActiveTab, darkMode }) => {
 
     if (!user) {
         return (
-            <div className={`rounded-2xl p-8 text-center text-sm ${darkMode ? "bg-[#1c1c1c] text-gray-400" : "bg-white border border-gray-200 text-gray-500"
+            <div className={`rounded-2xl p-8 text-center text-sm ${darkMode ? "bg-[#1c1c1c] text-gray-400" : "bg-[#e6e6e6] border border-gray-200 text-gray-500"
                 }`}>
                 No user data found. Please log in.
             </div>
@@ -119,14 +119,14 @@ const HomeComponent = ({ setActiveTab, darkMode }) => {
 
     // Theme tokens — no Tailwind opacity shorthand, all explicit
     const dm = darkMode;
-    const card = dm ? "bg-[#1c1c1c] border border-[#2a2a2a]" : "bg-white border border-gray-200";
+    const card = dm ? "bg-[#1c1c1c] border border-[#2a2a2a]" : "bg-[#e6e6e6] border border-gray-200";
     const heading = dm ? "text-white" : "text-gray-900";
     const muted = dm ? "text-gray-500" : "text-gray-400";
     const subtle = dm ? "bg-[#242424]" : "bg-gray-50 border border-gray-100";
     const exNumCls = dm ? "bg-[#2e2e2e] text-gray-400" : "bg-gray-100 text-gray-500";
     const badgeCls = dm ? "bg-[#2a2a2a] text-gray-400" : "bg-gray-100 text-gray-500";
-    const btnPrimary = dm ? "bg-white text-gray-900 hover:bg-gray-100" : "bg-gray-900 text-white hover:bg-gray-800";
-    const btnSecondary = dm ? "bg-[#242424] text-gray-300 hover:bg-[#2e2e2e] border border-[#2e2e2e]" : "bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200";
+    const btnPrimary = dm ? "bg-white text-gray-900 hover:bg-gray-100 cursor-pointer" : "bg-gray-900 text-white hover:bg-gray-800 cursor-pointer";
+    const btnSecondary = dm ? "bg-[#242424] text-gray-300 hover:bg-[#2e2e2e] border border-[#2e2e2e] cursor-pointer" : "bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 cursor-pointer";
 
     const hydPct = Math.min(hydrationData.percentage, 100);
     const R = 44;

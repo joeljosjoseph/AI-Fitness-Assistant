@@ -107,7 +107,7 @@ export default function WorkoutDashboard() {
             {/* Mobile menu */}
             <button
               onClick={() => setSidebarOpen(true)}
-              className={`lg:hidden p-2 rounded-xl transition-colors ${darkMode ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-gray-900 hover:bg-gray-200"}`}
+              className={`lg:hidden p-2 rounded-xl transition-colors cursor-pointer ${darkMode ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-gray-900 hover:bg-gray-200"}`}
             >
               <Menu className="w-5 h-5" />
             </button>
@@ -130,7 +130,7 @@ export default function WorkoutDashboard() {
               onClick={toggleDark}
               style={{ background: darkMode ? "rgba(255,255,255,0.1)" : "" }}
               className={`
-                p-2 rounded-xl transition-all duration-200 border
+                p-2 rounded-xl transition-all duration-200 border cursor-pointer
                 ${darkMode
                   ? "text-gray-200 border-white/20 hover:text-white"
                   : "bg-gray-100 text-gray-600 border-gray-200 hover:text-gray-900 hover:bg-gray-200"
@@ -146,7 +146,7 @@ export default function WorkoutDashboard() {
               onClick={() => router.push("/profile")}
               className={`
                 w-9 h-9 rounded-xl flex items-center justify-center
-                transition-all duration-200 font-medium text-sm
+                transition-all duration-200 font-medium text-sm cursor-pointer
                 ${darkMode
                   ? "bg-white text-gray-900 hover:bg-gray-100"
                   : "bg-gray-900 text-white hover:bg-gray-700"

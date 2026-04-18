@@ -35,17 +35,17 @@ const Hydration = ({ darkMode = false }) => {
 
     // ── Theme tokens (mirrors HomeComponent) ──
     const dm = darkMode;
-    const card = dm ? "bg-[#1c1c1c] border border-[#2a2a2a]" : "bg-white border border-gray-200";
+    const card = dm ? "bg-[#1c1c1c] border border-[#2a2a2a]" : "bg-[#e6e6e6] border border-gray-200";
     const heading = dm ? "text-white" : "text-gray-900";
     const muted = dm ? "text-gray-500" : "text-gray-400";
     const subtle = dm ? "bg-[#242424] border border-[#2e2e2e]" : "bg-gray-50 border border-gray-100";
-    const btnPrimary = dm ? "bg-white text-gray-900 hover:bg-gray-100" : "bg-gray-900 text-white hover:bg-gray-800";
-    const btnSecondary = dm ? "bg-[#242424] text-gray-300 hover:bg-[#2e2e2e] border border-[#2e2e2e]" : "bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200";
+    const btnPrimary = dm ? "bg-white text-gray-900 hover:bg-gray-100 cursor-pointer" : "bg-gray-900 text-white hover:bg-gray-800 cursor-pointer";
+    const btnSecondary = dm ? "bg-[#242424] text-gray-300 hover:bg-[#2e2e2e] border border-[#2e2e2e] cursor-pointer" : "bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 cursor-pointer";
     const inputCls = dm
         ? "bg-[#242424] border border-[#2e2e2e] text-white placeholder-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
         : "bg-white border border-gray-200 text-gray-800 placeholder-gray-400 focus:border-blue-400 focus:ring-1 focus:ring-blue-400";
     const labelCls = `text-[11px] font-semibold uppercase tracking-widest mb-1.5 block ${muted}`;
-    const trackColor = dm ? "#2a2a2a" : "#e5e7eb";
+    const trackColor = dm ? "#2a2a2a" : "#ffffff";
     const progressColor = dm ? "#60a5fa" : "#2563eb";
 
     const getCurrentSeason = () => {
@@ -221,7 +221,7 @@ const Hydration = ({ darkMode = false }) => {
                     <div className="grid grid-cols-2 gap-3 flex-1">
                         {[{ emoji: "🥤", label: "250ml", amount: 250 }, { emoji: "🍶", label: "500ml", amount: 500 }, { emoji: "💧", label: "750ml", amount: 750 }, { emoji: "🚰", label: "1000ml", amount: 1000 }].map(({ emoji, label, amount }) => (
                             <button key={amount} onClick={() => addWater(amount)}
-                                className={`flex flex-col items-center justify-center py-4 rounded-xl text-sm font-semibold transition-all hover:opacity-90 active:scale-[0.98] ${subtle} ${heading}`}>
+                                className={`flex flex-col items-center justify-center py-4 rounded-xl text-sm font-semibold transition-all cursor-pointer hover:opacity-90 active:scale-[0.98] ${subtle} ${heading}`}>
                                 <span className="text-xl mb-1">{emoji}</span>
                                 <span className={`text-xs ${muted}`}>{label}</span>
                             </button>

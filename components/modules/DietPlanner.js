@@ -16,12 +16,12 @@ const DietPlanner = ({ darkMode = false }) => {
 
     // ── Theme tokens ──
     const dm = darkMode;
-    const card = dm ? 'bg-[#1c1c1c] border border-[#2a2a2a]' : 'bg-white border border-gray-200';
+    const card = dm ? 'bg-[#1c1c1c] border border-[#2a2a2a]' : 'bg-[#e6e6e6] border border-gray-200';
     const heading = dm ? 'text-white' : 'text-gray-900';
     const muted = dm ? 'text-gray-500' : 'text-gray-400';
     const subtle = dm ? 'bg-[#242424] border border-[#2e2e2e]' : 'bg-gray-50 border border-gray-100';
-    const btnPrimary = dm ? 'bg-white text-gray-900 hover:bg-gray-100 disabled:opacity-40' : 'bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-40';
-    const btnSecondary = dm ? 'bg-[#242424] text-gray-300 hover:bg-[#2e2e2e] border border-[#2e2e2e]' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200';
+    const btnPrimary = dm ? 'bg-white text-gray-900 hover:bg-gray-100 disabled:opacity-40 cursor-pointer' : 'bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-40 cursor-pointer';
+    const btnSecondary = dm ? 'bg-[#242424] text-gray-300 hover:bg-[#2e2e2e] border border-[#2e2e2e] cursor-pointer' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 cursor-pointer';
     const inputCls = dm
         ? 'bg-[#242424] border border-[#2e2e2e] text-white placeholder-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-40'
         : 'bg-white border border-gray-200 text-gray-800 placeholder-gray-400 focus:border-gray-400 focus:ring-1 focus:ring-gray-400 disabled:bg-gray-50 disabled:opacity-60';

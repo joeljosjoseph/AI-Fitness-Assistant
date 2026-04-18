@@ -7,7 +7,7 @@ import { createProfileSummary, processLine } from '@/utils/functions';
 import { PROFILE_QUESTIONS, SYSTEM_INSTRUCTION, WORKOUT_SYSTEM_INSTRUCTION } from '@/utils/constants';
 
 // ─── Markdown renderer ───────────────────────────────────────────────────────
-const processBoldInline = (text, dm) => {
+export const processBoldInline = (text, dm) => {
     const parts = text.split(/(\*\*.*?\*\*)/g);
     return parts.map((part, i) =>
         part.startsWith('**') && part.endsWith('**')
@@ -16,7 +16,7 @@ const processBoldInline = (text, dm) => {
     );
 };
 
-const renderMarkdown = (content, dm = false) => {
+export const renderMarkdown = (content, dm = false) => {
     const muted = dm ? 'text-gray-400' : 'text-gray-500';
     const body = dm ? 'text-gray-300' : 'text-gray-800';
     const h2cls = dm ? 'text-blue-400' : 'text-gray-900';
@@ -94,7 +94,7 @@ const renderMarkdown = (content, dm = false) => {
 };
 
 // ─── Workout Plan Card ────────────────────────────────────────────────────────
-const WorkoutPlanCard = ({ content, dm = false }) => {
+export const WorkoutPlanCard = ({ content, dm = false }) => {
     const [openDay, setOpenDay] = useState(0);
     const dayMatches = [...content.matchAll(/###\s*Day\s*(\d+):\s*(.+)/gi)];
     if (dayMatches.length === 0) return <div className="prose prose-sm max-w-none">{renderMarkdown(content, dm)}</div>;
@@ -126,8 +126,8 @@ const WorkoutPlanCard = ({ content, dm = false }) => {
 
     const tabBorder = dm ? 'border-[#2a2a2a]' : 'border-gray-200';
     const tabBg = dm ? 'bg-[#242424]' : 'bg-gray-50';
-    const activeBg = dm ? 'bg-[#1c1c1c] text-white border-b-2 border-blue-400' : 'bg-white text-gray-900 border-b-2 border-gray-900';
-    const inactiveTab = dm ? 'text-gray-500 hover:text-gray-300' : 'text-gray-500 hover:text-gray-700';
+    const activeBg = dm ? 'bg-[#1c1c1c] text-white border-b-2 border-blue-400' : 'bg-[#e6e6e6] text-gray-900 border-b-2 border-gray-900';
+    const inactiveTab = dm ? 'text-gray-500 hover:text-gray-300 cursor-pointer' : 'text-gray-500 hover:text-gray-700 cursor-pointer';
 
     return (
         <div className="w-full space-y-3">
@@ -196,7 +196,7 @@ const MessageBubble = ({ msg, dm = false }) => {
 };
 
 // ─── Parse AI markdown into structured workout plan ──────────────────────────
-const parseWorkoutPlanToStructured = (text, workoutDays) => {
+export const parseWorkoutPlanToStructured = (text, workoutDays) => {
     const weeklySchedule = [];
     const lines = text.split('\n');
     let currentDay = null;
@@ -249,13 +249,13 @@ const Chatbot = ({ darkMode = false }) => {
 
     // ── Theme tokens ──
     const dm = darkMode;
-    const card = dm ? 'bg-[#1c1c1c] border border-[#2a2a2a]' : 'bg-white border border-gray-200';
+    const card = dm ? 'bg-[#1c1c1c] border border-[#2a2a2a]' : 'bg-[#e6e6e6] border border-gray-200';
     const heading = dm ? 'text-white' : 'text-gray-900';
     const muted = dm ? 'text-gray-500' : 'text-gray-400';
     const inputCls = dm
         ? 'bg-[#242424] border border-[#2e2e2e] text-white placeholder-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
         : 'bg-gray-50 border border-gray-200 text-gray-800 placeholder-gray-400 focus:border-gray-400 focus:ring-1 focus:ring-gray-400';
-    const btnPrimary = dm ? 'bg-white text-gray-900 hover:bg-gray-100 disabled:opacity-40' : 'bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-40';
+    const btnPrimary = dm ? 'bg-white text-gray-900 hover:bg-gray-100 disabled:opacity-40 cursor-pointer' : 'bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-40 cursor-pointer';
     const divider = dm ? 'border-[#2a2a2a]' : 'border-gray-100';
 
     const scrollToBottom = () => {

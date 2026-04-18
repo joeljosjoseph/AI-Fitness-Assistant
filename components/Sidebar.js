@@ -23,7 +23,7 @@ const NavigationItem = ({ icon: Icon, label, value, active, darkMode, setActiveT
     onClick={() => { setActiveTab(value); setSidebarOpen(false); }}
     className={`
       w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium
-      transition-all duration-200 relative overflow-hidden
+      transition-all duration-200 relative overflow-hidden cursor-pointer
       ${active
         ? darkMode
           ? "bg-white/10 text-white"
@@ -117,7 +117,7 @@ const Sidebar = ({ activeTab, sidebarOpen, setActiveTab, setSidebarOpen, darkMod
           {/* Dark / Light mode toggle */}
           <button
             onClick={toggleDark}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer
               ${darkMode
                 ? "text-gray-400 hover:text-white"
                 : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
@@ -132,7 +132,7 @@ const Sidebar = ({ activeTab, sidebarOpen, setActiveTab, setSidebarOpen, darkMod
 
           <button
             onClick={() => router.push("/")}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all duration-200
               ${darkMode ? "text-red-400 hover:bg-red-500/10" : "text-red-500 hover:bg-red-50"}`}
           >
             <LogOut className="w-4 h-4 shrink-0" strokeWidth={1.8} />
