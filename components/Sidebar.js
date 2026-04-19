@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/router";
 import React from "react";
+import { logout } from "../utils/auth";
 
 // Defined at module level — never recreated during render
 const NAV_ITEMS = [
@@ -131,9 +132,9 @@ const Sidebar = ({ activeTab, sidebarOpen, setActiveTab, setSidebarOpen, darkMod
           </button>
 
           <button
-            onClick={() => router.push("/")}
+            onClick={() => logout(router)}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all duration-200
-              ${darkMode ? "text-red-400 hover:bg-red-500/10" : "text-red-500 hover:bg-red-50"}`}
+    ${darkMode ? "text-red-400 hover:bg-red-500/10" : "text-red-500 hover:bg-red-50"}`}
           >
             <LogOut className="w-4 h-4 shrink-0" strokeWidth={1.8} />
             <span>Logout</span>
