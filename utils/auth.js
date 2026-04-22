@@ -2,6 +2,7 @@ import { useEffect } from "react";
 
 export function logout(router) {
     localStorage.removeItem("user");
+    localStorage.removeItem("fridgeItemsForDiet")
     router.push("/");
 }
 
