@@ -1,16 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Dumbbell, Clock, ChevronRight } from 'lucide-react';
 
 // ── Strip **bold** markers from a string ────────────────────────────────────
 const stripBold = (str) => str.replace(/\*\*/g, '');
 
+// ── Today's date as "YYYY-MM-DD" string ─────────────────────────────────────
+const getTodayString = () => new Date().toISOString().slice(0, 10);
+
 // ── Parse a day's raw markdown lines into structured exercises ───────────────
-// Handles Gemini's actual output format:
-//   - "- **Kettlebell Swings:** 3 sets of 15 reps."
-//   - "- **Warm-up:** 5 mins jumping jacks"
-//   - "1. **Bench Press** - 3x10 - 60s rest"
 const parseExercisesFromLines = (lines) => {
     const exercises = [];
     let warmup = '';
@@ -21,37 +20,18 @@ const parseExercisesFromLines = (lines) => {
         const trimmed = raw.trim();
         if (!trimmed) continue;
 
-        // Strip leading bullet/number
         const stripped = trimmed.replace(/^[-*•]\s+/, '').replace(/^\d+\.\s+/, '');
-
-        // Check if this is a bold-prefixed line: **Label:** content
         const boldMatch = stripped.match(/^\*\*(.+?)\*\*[:\s-]*(.*)/);
-        if (!boldMatch) {
-            // Plain line with no bold — skip unless it's clearly content
-            continue;
-        }
+        if (!boldMatch) continue;
 
         const label = boldMatch[1].replace(/:$/, '').trim();
         const content = boldMatch[2].trim();
 
-        // Warm-up line
-        if (/warm[\s-]?up/i.test(label)) {
-            warmup = stripBold(content || label);
-            continue;
-        }
-        // Cool-down line
-        if (/cool[\s-]?down/i.test(label)) {
-            cooldown = stripBold(content || label);
-            continue;
-        }
-        // Skip pure section headers with no content
-        if (!content && /^(exercises?|workout|day\s*\d+|notes?|tips?|schedule)/i.test(label)) {
-            continue;
-        }
+        if (/warm[\s-]?up/i.test(label)) { warmup = stripBold(content || label); continue; }
+        if (/cool[\s-]?down/i.test(label)) { cooldown = stripBold(content || label); continue; }
+        if (!content && /^(exercises?|workout|day\s*\d+|notes?|tips?|schedule)/i.test(label)) continue;
 
-        // It's an exercise — parse sets/reps/rest out of the content string
         const fullText = content;
-
         const setsReps =
             fullText.match(/(\d+)\s*sets?\s+of\s+(\d+[\-–]?\d*)\s*(?:reps?|repetitions?)/i) ||
             fullText.match(/(\d+)\s*[x×]\s*(\d+[\-–]?\d*)/i) ||
@@ -62,7 +42,6 @@ const parseExercisesFromLines = (lines) => {
             fullText.match(/rest[:\s]+(\d+\s*(?:s|sec(?:onds?)?|min(?:utes?)?))/i) ||
             fullText.match(/(\d+\s*(?:seconds?|secs?|minutes?|mins?))\s*rest/i);
 
-        // Collect note from next indented line if present
         let notes = '';
         if (i + 1 < lines.length && /^\s{2,}/.test(lines[i + 1])) {
             notes = stripBold(lines[i + 1].trim().replace(/^[-*]\s*(?:Note[s]?:\s*)?/i, ''));
@@ -74,7 +53,7 @@ const parseExercisesFromLines = (lines) => {
             sets: setsReps ? setsReps[1] : '',
             reps: setsReps ? setsReps[2] : '',
             rest: restMatch ? restMatch[1] : '',
-            detail: setsReps ? '' : stripBold(fullText), // show full text if no sets/reps parsed
+            detail: setsReps ? '' : stripBold(fullText),
             notes,
         });
     }
@@ -90,6 +69,9 @@ const Workout = ({ darkMode = false }) => {
     const [error, setError] = useState(null);
     const [todayExercises, setTodayExercises] = useState([]);
     const [markingComplete, setMarkingComplete] = useState(false);
+
+    // ref to debounce the checklist save
+    const saveTimerRef = useRef(null);
 
     const dm = darkMode;
     const card = dm ? 'bg-[#1c1c1c] border border-[#2a2a2a]' : 'bg-[#e6e6e6] border border-gray-200';
@@ -123,67 +105,149 @@ const Workout = ({ darkMode = false }) => {
         });
     }, [workoutPlan]);
 
+    const todayIdx = parsedDays.length > 0 ? new Date().getDay() % parsedDays.length : 0;
+
+    // ── Fetch user + rehydrate checklist ─────────────────────────────────────
     useEffect(() => {
         const fetchWorkoutPlan = async () => {
             try {
                 const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
                 const userId = storedUser._id;
                 if (!userId) { setError('Not logged in'); setLoading(false); return; }
+
                 const res = await fetch(`/api/users/me?userId=${userId}`);
                 const data = await res.json();
                 if (!res.ok || !data.user) throw new Error(data.error || 'Failed to fetch');
+
                 setWorkoutPlan(data.user.workoutPlan || null);
-            } catch (err) { setError(err.message); }
-            finally { setLoading(false); }
+
+                // Rehydrate checklist if the saved date matches today
+                const saved = data.user.dailyProgress;
+                if (saved?.date === getTodayString()) {
+                    // Store for use once parsedDays are ready
+                    setWorkoutPlan(prev => ({
+                        ...(data.user.workoutPlan || {}),
+                        _savedDailyProgress: saved,
+                    }));
+                } else {
+                    setWorkoutPlan(data.user.workoutPlan || null);
+                }
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
         };
         fetchWorkoutPlan();
     }, []);
 
-    // Populate today's interactive exercises once parsedDays is ready
+    // ── Populate today's exercises (with saved completed state if available) ──
     useEffect(() => {
         if (parsedDays.length === 0) return;
         const idx = new Date().getDay() % parsedDays.length;
-        setTodayExercises(
-            (parsedDays[idx]?.exercises || []).map((ex, i) => ({ ...ex, id: i, completed: false }))
-        );
-    }, [parsedDays]);
+        const baseExercises = (parsedDays[idx]?.exercises || []).map((ex, i) => ({
+            ...ex,
+            id: i,
+            completed: false,
+        }));
 
-    const toggleExerciseComplete = (id) =>
-        setTodayExercises(prev => prev.map(ex => ex.id === id ? { ...ex, completed: !ex.completed } : ex));
+        // Apply saved progress if it's for today and the same day index
+        const saved = workoutPlan?._savedDailyProgress;
+        if (saved?.date === getTodayString() && saved?.dayIndex === idx) {
+            const completedSet = new Set(saved.completedExerciseIds);
+            setTodayExercises(baseExercises.map(ex => ({
+                ...ex,
+                completed: completedSet.has(ex.id),
+            })));
+        } else {
+            setTodayExercises(baseExercises);
+        }
+    }, [parsedDays]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // ── Debounced save of checklist state to DB ───────────────────────────────
+    const saveDailyProgressToDB = useCallback(async (exercises, dayIndex) => {
+        try {
+            const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+            const userId = storedUser._id;
+            if (!userId) return;
+
+            const completedExerciseIds = exercises
+                .filter(ex => ex.completed)
+                .map(ex => ex.id);
+
+            const res = await fetch('/api/users/me', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId,
+                    action: 'saveDailyProgress',
+                    updateData: {
+                        date: getTodayString(),
+                        completedExerciseIds,
+                        dayIndex,
+                    },
+                }),
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                localStorage.setItem('user', JSON.stringify(data.user));
+            }
+        } catch (err) {
+            console.error('Failed to save daily progress:', err);
+        }
+    }, []);
+
+    // ── Toggle a single exercise + schedule a debounced DB save ──────────────
+    const toggleExerciseComplete = (id) => {
+        setTodayExercises(prev => {
+            const updated = prev.map(ex => ex.id === id ? { ...ex, completed: !ex.completed } : ex);
+
+            // Debounce: wait 800ms after last toggle before hitting the DB
+            if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+            saveTimerRef.current = setTimeout(() => {
+                saveDailyProgressToDB(updated, todayIdx);
+            }, 800);
+
+            return updated;
+        });
+    };
+
+    // ── Mark full workout complete ────────────────────────────────────────────
     const markWorkoutComplete = async () => {
         setMarkingComplete(true);
         try {
             const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
             const userId = storedUser._id;
             const today = new Date();
-            const idx = today.getDay() % (parsedDays.length || 1);
-            const todayDay = parsedDays[idx];
+            const todayDay = parsedDays[todayIdx];
+
             const res = await fetch('/api/users/me', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     userId,
+                    action: 'completeWorkout',
                     updateData: {
-                        'progress.workoutsCompleted': (workoutPlan?.completedWorkouts?.length ?? 0) + 1,
-                        'progress.lastWorkoutDate': today,
-                        $push: {
-                            'progress.completedWorkouts': {
-                                dayNumber: todayDay?.dayNumber ?? idx + 1,
-                                completedAt: today,
-                                notes: `Completed ${completedCount}/${totalExercises} exercises`,
-                            },
+                        workoutsCompleted: (workoutPlan?.completedWorkouts?.length ?? 0) + 1,
+                        lastWorkoutDate: today,
+                        completedWorkoutEntry: {
+                            dayNumber: todayDay?.dayNumber ?? todayIdx + 1,
+                            completedAt: today,
+                            notes: `Completed ${completedCount}/${totalExercises} exercises`,
                         },
                     },
                 }),
             });
+
             const data = await res.json();
             if (data.success) localStorage.setItem('user', JSON.stringify(data.user));
-        } catch (err) { console.error(err); }
+        } catch (err) {
+            console.error(err);
+        }
         setMarkingComplete(false);
     };
 
-    const todayIdx = parsedDays.length > 0 ? new Date().getDay() % parsedDays.length : 0;
     const todayDay = parsedDays[todayIdx] ?? null;
     const upcomingDays = parsedDays.filter((_, i) => i > todayIdx);
     const completedCount = todayExercises.filter(ex => ex.completed).length;
@@ -393,7 +457,7 @@ const Workout = ({ darkMode = false }) => {
                             <ExerciseList day={todayDay} interactive={true} />
 
                             {totalExercises > 0 && completionPct === 100 && (
-                                <div className={`mt-4 p-4 rounded-xl text-center  ${dm ? 'bg-green-900/20 border border-green-800/40' : 'bg-green-50 border border-green-200'}`}>
+                                <div className={`mt-4 p-4 rounded-xl text-center ${dm ? 'bg-green-900/20 border border-green-800/40' : 'bg-green-50 border border-green-200'}`}>
                                     <p className={`text-sm font-bold mb-3 ${dm ? 'text-green-400' : 'text-green-800'}`}>🎉 You&apos;ve completed today&apos;s workout!</p>
                                     <button onClick={markWorkoutComplete} disabled={markingComplete}
                                         className={`px-5 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer ${dm ? 'bg-green-500 text-white hover:bg-green-400' : 'bg-green-600 text-white hover:bg-green-700'}`}>

@@ -10,10 +10,10 @@ const ExerciseSchema = new mongoose.Schema({
 }, { _id: false });
 
 const WorkoutDaySchema = new mongoose.Schema({
-    dayNumber: { type: Number, required: true }, // 1, 2, 3, 4, etc.
-    dayName: { type: String, default: "" }, // "Monday", "Day 1", etc.
-    focus: { type: String, default: "" }, // "Upper Body A", "Push", "Legs"
-    duration: { type: Number, default: 0 }, // in minutes
+    dayNumber: { type: Number, required: true },
+    dayName: { type: String, default: "" },
+    focus: { type: String, default: "" },
+    duration: { type: Number, default: 0 },
     description: { type: String, default: "" },
     exercises: [ExerciseSchema],
     warmup: { type: String, default: "" },
@@ -26,9 +26,16 @@ const WorkoutPlanSchema = new mongoose.Schema({
     summary: { type: String, default: "" },
     fullPlan: { type: String, default: "" },
     structure: { type: String, default: "" },
-    weeklySchedule: [WorkoutDaySchema], // Array of workout days
-    restDays: { type: [Number], default: [] }, // Which days are rest [5, 6, 7]
+    weeklySchedule: [WorkoutDaySchema],
+    restDays: { type: [Number], default: [] },
     tips: { type: [String], default: [] }
+}, { _id: false });
+
+// ── NEW: tracks which exercises were checked off for a given calendar date ──
+const DailyProgressSchema = new mongoose.Schema({
+    date: { type: String, default: "" },              // "2026-04-21"
+    completedExerciseIds: { type: [Number], default: [] }, // indices of checked exercises
+    dayIndex: { type: Number, default: 0 },           // which parsedDays index was active
 }, { _id: false });
 
 const UserSchema = new mongoose.Schema({
@@ -56,6 +63,9 @@ const UserSchema = new mongoose.Schema({
     },
     workoutPlan: WorkoutPlanSchema,
     workoutHistory: [WorkoutPlanSchema],
+    // ── NEW field ──────────────────────────────────────────────────────────
+    dailyProgress: DailyProgressSchema,
+    // ──────────────────────────────────────────────────────────────────────
     progress: {
         workoutsCompleted: { type: Number, default: 0 },
         caloriesBurned: { type: Number, default: 0 },
