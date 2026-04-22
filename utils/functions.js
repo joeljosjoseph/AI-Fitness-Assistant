@@ -85,7 +85,7 @@ export const getUserDetails = async (data) => {
 
     const userRes = await fetch(`/api/users/me?userId=${data.user?.id}`);
     const userData = await userRes.json();
-    console.log(userData);
+    // console.log(userData);
 
     if (!userRes.ok) {
         console.log(userData.error);
