@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Bell, Loader2 } from "lucide-react";
 import { useRouter } from "next/router";
 import { Bounce, ToastContainer, toast } from "react-toastify";
+import { validateEmail, validatePassword } from "../utils/auth";
 
 async function parseApiJson(res) {
   const text = await res.text();
@@ -33,6 +34,30 @@ export default function AuthPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+
+    // Validate email
+    const emailError = validateEmail(formData.email);
+    if (emailError) {
+      toast.error(emailError);
+      setIsLoading(false);
+      return;
+    }
+
+    // Only validate password format on signup
+    if (!isLogin) {
+      const passwordError = validatePassword(formData.password);
+      if (passwordError) {
+        toast.error(passwordError);
+        setIsLoading(false);
+        return;
+      }
+
+      if (formData.password !== formData.confirmPassword) {
+        toast.error("Passwords do not match.");
+        setIsLoading(false);
+        return;
+      }
+    }
 
     try {
       if (isLogin) {
@@ -91,19 +116,6 @@ export default function AuthPage() {
         }
       } else {
         // SIGNUP
-        if (formData.password !== formData.confirmPassword) {
-          toast.error("Passwords do not match", {
-            position: "top-right",
-            autoClose: 5000,
-            pauseOnHover: true,
-            draggable: true,
-            theme: "light",
-            transition: Bounce,
-          });
-          setIsLoading(false);
-          return;
-        }
-
         const res = await fetch("/api/users/signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -267,6 +279,12 @@ export default function AuthPage() {
                 placeholder="Enter your password"
                 required
               />
+              {/* Password hint */}
+              {!isLogin && (
+                <p className="text-[11px] text-[#9ca3af] mt-1.5">
+                  Min. 8 characters, one capital letter, one number.
+                </p>
+              )}
             </div>
 
             {!isLogin && (

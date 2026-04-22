@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@hookform/resolvers": "^5.2.2",
     "@sentry/nextjs": "^10.39.0",
     "dotenv": "^17.2.3",
     "formidable": "^3.5.4",
@@ -19,7 +20,9 @@
     "next": "^16.0.7",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "react-toastify": "^11.0.5"
+    "react-hook-form": "^7.72.1",
+    "react-toastify": "^11.0.5",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.29.0",
