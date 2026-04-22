@@ -113,6 +113,9 @@ const Sidebar = ({ activeTab, sidebarOpen, setActiveTab, setSidebarOpen, darkMod
             value="settings"
             active={activeTab === "settings"}
             {...itemProps}
+            setActiveTab={(value) => {
+              router.push("/settings");
+            }}
           />
 
           {/* Dark / Light mode toggle */}
