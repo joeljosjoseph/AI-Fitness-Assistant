@@ -258,6 +258,21 @@ const Chatbot = ({ darkMode = false }) => {
     const btnPrimary = dm ? 'bg-white text-gray-900 hover:bg-gray-100 disabled:opacity-40 cursor-pointer' : 'bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-40 cursor-pointer';
     const divider = dm ? 'border-[#2a2a2a]' : 'border-gray-100';
 
+    const getGeminiApiKey = () => String(process.env.NEXT_PUBLIC_GEMINI_API_KEY || '').trim();
+    const getFriendlyGeminiError = (error) => {
+        const raw = String(error?.message || error || '');
+        if (
+            raw.includes('API_KEY_INVALID') ||
+            raw.toLowerCase().includes('api key not valid')
+        ) {
+            return 'Your Gemini API key is invalid. Set NEXT_PUBLIC_GEMINI_API_KEY in .env.local and restart Next.js.';
+        }
+        if (raw.toLowerCase().includes('api key') || raw.toLowerCase().includes('gemini')) {
+            return 'Gemini is not configured correctly. Check NEXT_PUBLIC_GEMINI_API_KEY in .env.local.';
+        }
+        return 'I encountered an error. Please try again.';
+    };
+
     const scrollToBottom = () => {
         setTimeout(() => {
             messagesContainerRef.current?.scrollTo({ top: messagesContainerRef.current.scrollHeight, behavior: 'smooth' });
@@ -266,7 +281,11 @@ const Chatbot = ({ darkMode = false }) => {
     };
 
     const initChatSession = (systemInstruction) => {
-        const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
+        const apiKey = getGeminiApiKey();
+        if (!apiKey) {
+            throw new Error('Gemini API key missing');
+        }
+        const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest', systemInstruction });
         chatSessionRef.current = model.startChat({ history: [], generationConfig: { maxOutputTokens: 8192, temperature: 0.7 } });
     };
@@ -274,7 +293,16 @@ const Chatbot = ({ darkMode = false }) => {
     useEffect(() => {
         const init = async () => {
             try { initChatSession(SYSTEM_INSTRUCTION); await checkExistingProfile(); }
-            catch (err) { console.error(err); setCheckingProfile(false); }
+            catch (err) {
+                console.error(err);
+                setCheckingProfile(false);
+                setMessages([
+                    {
+                        role: 'assistant',
+                        content: `⚠️ ${getFriendlyGeminiError(err)}`,
+                    },
+                ]);
+            }
         };
         init();
     }, []);
@@ -348,7 +376,7 @@ const Chatbot = ({ darkMode = false }) => {
             const data = await res.json();
             if (data.success) { localStorage.setItem('user', JSON.stringify(data.user)); addMessage('assistant', `✅ Your **${workoutDays}-day workout plan** has been saved!`); initChatSession(WORKOUT_SYSTEM_INSTRUCTION); }
             else { addMessage('assistant', '⚠️ Plan generated but could not be saved. Please try again.'); }
-        } catch (error) { console.error(error); addMessage('assistant', '❌ Error generating your workout plan. Please try again.'); }
+        } catch (error) { console.error(error); addMessage('assistant', `❌ ${getFriendlyGeminiError(error)}`); }
         setIsLoading(false);
     };
 
@@ -362,7 +390,7 @@ const Chatbot = ({ darkMode = false }) => {
         try {
             const result = await chatSessionRef.current.sendMessage(userMsg);
             addMessage('assistant', result.response.text());
-        } catch (e) { console.error(e); addMessage('assistant', '❌ I encountered an error. Please try again.'); }
+        } catch (e) { console.error(e); addMessage('assistant', `❌ ${getFriendlyGeminiError(e)}`); }
         setIsLoading(false);
     };
 

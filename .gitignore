@@ -56,3 +56,6 @@ next-env.d.ts
 /FridgeVision.yolov8/train/
 /FridgeVision.yolov8/valid/
 /FridgeVision.yolov8/test/
+
+# Local env copy (never commit secrets)
+/env

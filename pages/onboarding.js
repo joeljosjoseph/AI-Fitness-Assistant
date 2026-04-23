@@ -3,8 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { ChevronRight, ChevronLeft, Dumbbell, Check } from 'lucide-react';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { WORKOUT_SYSTEM_INSTRUCTION } from '@/utils/constants';
 import { WorkoutPlanCard, parseWorkoutPlanToStructured } from '@/components/modules/Chatbot';
 
 // ─── Question definitions ─────────────────────────────────────────────────────
@@ -155,6 +153,7 @@ export default function OnboardingPage() {
     const [saving, setSaving] = useState(false);
     const [done, setDone] = useState(false);
     const [workoutPlanText, setWorkoutPlanText] = useState('');
+    const [finishError, setFinishError] = useState('');
     const inputRef = useRef(null);
 
     const current = STEPS[step];
@@ -204,36 +203,161 @@ export default function OnboardingPage() {
         setAnswers(prev => ({ ...prev, [current.key]: value }));
     };
 
+    const getFriendlyGeminiError = (err) => {
+        const raw = String(err?.message || err || '');
+        if (
+            raw.includes('API_KEY_INVALID') ||
+            raw.toLowerCase().includes('api key not valid')
+        ) {
+            return 'Your Gemini API key is invalid. Set a valid NEXT_PUBLIC_GEMINI_API_KEY in .env.local and restart Next.js.';
+        }
+        if (raw.toLowerCase().includes('api key') || raw.toLowerCase().includes('gemini')) {
+            return 'Gemini is not configured correctly. Set GEMINI_API_KEY (recommended) or NEXT_PUBLIC_GEMINI_API_KEY in .env.local and restart the dev server.';
+        }
+        return 'Failed to generate workout plan. Please try again.';
+    };
+
+    const buildLocalFallbackPlan = (finalAnswers, workoutDays, timePerWorkout) => {
+        const goal = finalAnswers.goal || 'General fitness';
+        const equipment = finalAnswers.equipment || 'Available equipment';
+        const level = finalAnswers.level || 'Beginner';
+        const limitations =
+            finalAnswers.limitations && finalAnswers.limitations.toLowerCase() !== 'none'
+                ? finalAnswers.limitations
+                : 'None';
+
+        const dayTemplates = [
+            {
+                focus: 'Upper Body + Core',
+                exercises: [
+                    'Push-ups - 3 sets × 10-15 reps | Rest: 60 sec',
+                    'Dumbbell/Backpack Row - 3 sets × 10-12 reps | Rest: 60 sec',
+                    'Shoulder Press - 3 sets × 10-12 reps | Rest: 60 sec',
+                    'Plank - 3 sets × 30-45 sec | Rest: 45 sec',
+                    'Dead Bug - 3 sets × 10-12 reps/side | Rest: 45 sec',
+                ],
+            },
+            {
+                focus: 'Lower Body + Mobility',
+                exercises: [
+                    'Bodyweight Squat - 4 sets × 10-15 reps | Rest: 60 sec',
+                    'Reverse Lunge - 3 sets × 10 reps/side | Rest: 60 sec',
+                    'Glute Bridge - 3 sets × 12-15 reps | Rest: 45 sec',
+                    'Calf Raise - 3 sets × 15-20 reps | Rest: 45 sec',
+                    'Hip Flexor Stretch - 2 sets × 30 sec/side | Rest: 30 sec',
+                ],
+            },
+            {
+                focus: 'Full Body Conditioning',
+                exercises: [
+                    'Goblet Squat - 3 sets × 10-12 reps | Rest: 60 sec',
+                    'Incline Push-up - 3 sets × 10-15 reps | Rest: 60 sec',
+                    'Romanian Deadlift - 3 sets × 10-12 reps | Rest: 60 sec',
+                    'Mountain Climbers - 3 sets × 30 sec | Rest: 45 sec',
+                    'Side Plank - 2 sets × 25-40 sec/side | Rest: 45 sec',
+                ],
+            },
+            {
+                focus: 'Pull + Posterior Chain',
+                exercises: [
+                    'Band/Row Variation - 4 sets × 10-12 reps | Rest: 60 sec',
+                    'Hip Hinge - 3 sets × 10-12 reps | Rest: 60 sec',
+                    'Face Pull / Rear Delt Raise - 3 sets × 12-15 reps | Rest: 45 sec',
+                    'Bird Dog - 3 sets × 8-10 reps/side | Rest: 45 sec',
+                    'Farmer Carry - 3 sets × 30-45 sec | Rest: 60 sec',
+                ],
+            },
+            {
+                focus: 'Core + Cardio',
+                exercises: [
+                    'Brisk Walk / Bike - 12-20 min | Rest: as needed',
+                    'Bodyweight Circuit - 3 rounds × 5 exercises | Rest: 60 sec',
+                    'Russian Twist - 3 sets × 16-20 reps | Rest: 45 sec',
+                    'Leg Raise - 3 sets × 10-12 reps | Rest: 45 sec',
+                    'Stretch + Breathing - 5 min | Rest: none',
+                ],
+            },
+        ];
+
+        const days = [];
+        for (let i = 0; i < workoutDays; i += 1) {
+            const template = dayTemplates[i % dayTemplates.length];
+            days.push(`### Day ${i + 1}: ${template.focus}
+
+**Warm-up (5-10 min):**
+Light cardio + dynamic stretches
+
+**Exercises:**
+
+1. ${template.exercises[0]}
+2. ${template.exercises[1]}
+3. ${template.exercises[2]}
+4. ${template.exercises[3]}
+5. ${template.exercises[4]}
+
+**Cool-down (5 min):**
+Gentle stretching and deep breathing`);
+        }
+
+        return `## ${workoutDays}-Day Starter Workout Plan
+
+**Goal:** ${goal}
+**Level:** ${level}
+**Duration:** ${timePerWorkout} minutes per session
+**Equipment:** ${equipment}
+**Limitations:** ${limitations}
+
+---
+
+${days.join('\n\n---\n\n')}
+
+---
+
+**Tips:**
+- Focus on consistent form over speed.
+- Increase reps/loads gradually each week.
+- Take one rest day between intense sessions when possible.
+`;
+    };
+
     const handleFinish = async (finalAnswers) => {
         setSaving(true);
+        setFinishError('');
+        let finishedOk = false;
         try {
             const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
             const userId = storedUser._id;
 
-            // ── 1. Generate workout plan via Gemini ──────────────────────────
-            const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
-            const model = genAI.getGenerativeModel({
-                model: 'gemini-flash-latest',
-                systemInstruction: WORKOUT_SYSTEM_INSTRUCTION,
-            });
-            const chat = model.startChat({
-                history: [],
-                generationConfig: { maxOutputTokens: 8192, temperature: 0.7 },
-            });
-
+            // ── 1. Generate workout plan via Gemini (server API — reads GEMINI_API_KEY) ──
             const workoutDays = parseInt(finalAnswers.days_per_week) || 3;
             const timePerWorkout = parseInt(finalAnswers.time_per_workout) || 45;
 
-            const prompt = `Create a ${workoutDays}-day workout plan.\n\nProfile:\n- Age: ${finalAnswers.age} | Gender: ${finalAnswers.gender}\n- Height: ${finalAnswers.height}cm | Weight: ${finalAnswers.weight}kg → ${finalAnswers.goalWeight || finalAnswers.weight}kg\n- Goal: ${finalAnswers.goal}\n- Level: ${finalAnswers.level}\n- Equipment: ${finalAnswers.equipment}\n- Limitations: ${finalAnswers.limitations}\n- Time: ${timePerWorkout} minutes per workout\n\nGenerate EXACTLY ${workoutDays} workout days. Follow your formatting instructions precisely. Label each as ### Day 1: [Focus], ### Day 2: [Focus], etc.`;
+            const planRes = await fetch("/api/ai/workout-plan", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(finalAnswers),
+            });
+            const planJson = await planRes.json().catch(() => ({}));
+            let aiWorkoutText = '';
+            if (!planRes.ok || !planJson.ok || typeof planJson.text !== "string") {
+                const msg =
+                    planJson.error ||
+                    `Workout plan request failed (${planRes.status})`;
+                console.warn('Gemini unavailable, using local fallback plan:', msg);
+                aiWorkoutText = buildLocalFallbackPlan(
+                    finalAnswers,
+                    workoutDays,
+                    timePerWorkout
+                );
+            } else {
+                aiWorkoutText = planJson.text;
+            }
 
-            const result = await chat.sendMessage(prompt);
-            const aiWorkoutText = result.response.text();
+                // ── 2. Parse into structured format ─────────────────────────────
+                const weeklySchedule = parseWorkoutPlanToStructured(aiWorkoutText, workoutDays);
 
-            // ── 2. Parse into structured format ─────────────────────────────
-            const weeklySchedule = parseWorkoutPlanToStructured(aiWorkoutText, workoutDays);
-
-            // ── 3. Save profile + plan to DB ─────────────────────────────────
-            const updateData = {
+                // ── 3. Save profile + plan to DB ─────────────────────────────────
+                const updateData = {
                 personalDetails: {
                     age: parseInt(finalAnswers.age) || null,
                     gender: finalAnswers.gender || '',
@@ -259,27 +383,29 @@ export default function OnboardingPage() {
                     structure: `${workoutDays} days/week`,
                     summary: `${workoutDays}-day plan for ${finalAnswers.goal}, ${timePerWorkout} min/session`,
                 },
-            };
+                };
 
-            const res = await fetch('/api/users/me', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, updateData }),
-            });
-            const data = await res.json();
-            if (data.success) {
-                localStorage.setItem('user', JSON.stringify(data.user));
-            }
+                const res = await fetch('/api/users/me', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, updateData }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                }
 
-            // ── 4. Show plan before redirecting ─────────────────────────────
-            setWorkoutPlanText(aiWorkoutText);
+                // ── 4. Show plan before redirecting ─────────────────────────────
+                setWorkoutPlanText(aiWorkoutText);
+                finishedOk = true;
 
         } catch (err) {
             console.error('Error during onboarding finish:', err);
+            setFinishError(getFriendlyGeminiError(err));
+        } finally {
+            setSaving(false);
+            setDone(finishedOk);
         }
-
-        setSaving(false);
-        setDone(true);
     };
 
     // ── Saving / generating screen ──
@@ -390,6 +516,11 @@ export default function OnboardingPage() {
                     <h2 className="text-2xl sm:text-3xl font-bold text-white mb-8 leading-tight tracking-tight">
                         {current.question}
                     </h2>
+                    {finishError && step === total - 1 && (
+                        <div className="mb-5 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+                            {finishError}
+                        </div>
+                    )}
 
                     {/* Card options */}
                     {current.type === 'card' && (
