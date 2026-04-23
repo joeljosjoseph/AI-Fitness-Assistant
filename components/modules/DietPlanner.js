@@ -87,7 +87,7 @@ const DietPlanner = ({ darkMode = false }) => {
             const localBody = { gender: formData.gender, goal: formData.goal, weight_kg: parseFloat(formData.weight_kg), height_cm: parseFloat(formData.height_cm), fridgeItems };
             const remoteBody = { gender: formData.gender, goal: formData.goal, weight_kg: parseFloat(formData.weight_kg), height_cm: parseFloat(formData.height_cm) };
             let response = null;
-            try { response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}diet/predict`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(remoteBody) }); } catch { response = null; }
+            try { response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/diet/predict`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(remoteBody) }); } catch { response = null; }
             if ((!response || !response.ok) && apiBase) { try { response = await fetch(`/api/diet/predict`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(localBody) }); } catch { response = null; } }
             if (!response || !response.ok) { const e = response ? await response.json().catch(() => ({})) : {}; throw new Error(e.detail || e.error || 'Failed to get diet plan'); }
             const data = await response.json();
