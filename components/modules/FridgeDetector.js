@@ -52,7 +52,7 @@ const FridgeDetector = ({ setActiveTab, darkMode = false }) => {
             form.append("image", file);
             form.append("userId", userId);
             // ✅ Goes through Next.js API route → runs detection → saves to DB
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}fridge/detect`, { method: "POST", body: form });
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/fridge/detect`, { method: "POST", body: form });
             const data = await res.json();
 
             if (!res.ok || !data.items) throw new Error(data.error || "Detection failed");
