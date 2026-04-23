@@ -51,9 +51,11 @@ const FridgeDetector = ({ setActiveTab, darkMode = false }) => {
             const form = new FormData();
             form.append("image", file);
             form.append("userId", userId);
-            const res = await fetch("/api/fridge/detect", { method: "POST", body: form });
+            // ✅ Goes through Next.js API route → runs detection → saves to DB
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}fridge/detect`, { method: "POST", body: form });
             const data = await res.json();
-            if (!res.ok || !data.success) throw new Error(data.error || "Detection failed");
+
+            if (!res.ok || !data.items) throw new Error(data.error || "Detection failed");
             setItems(data.items || []);
             toast.success("Detected and saved fridge items.");
         } catch (err) { toast.error(err.message || "Detection failed"); }
@@ -63,7 +65,7 @@ const FridgeDetector = ({ setActiveTab, darkMode = false }) => {
     const addManual = async () => {
         if (!manualName.trim()) { toast.info("Enter an item name"); return; }
         try {
-            const res = await fetch("/api/fridge/items", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, name: manualName.trim(), count: Number(manualCount || 1) }) });
+            const res = await fetch(`/api/fridge/items`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, name: manualName.trim(), count: Number(manualCount || 1) }) });
             const data = await res.json();
             if (!res.ok || !data.success) throw new Error(data.error || "Failed to add item");
             setItems(data.items || []);
@@ -74,7 +76,7 @@ const FridgeDetector = ({ setActiveTab, darkMode = false }) => {
 
     const removeItem = async (name) => {
         try {
-            const res = await fetch("/api/fridge/items", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, name }) });
+            const res = await fetch(`/api/fridge/items`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, name }) });
             const data = await res.json();
             if (!res.ok || !data.success) throw new Error(data.error || "Failed to remove item");
             setItems(data.items || []);
@@ -108,7 +110,7 @@ const FridgeDetector = ({ setActiveTab, darkMode = false }) => {
                 <p className={`text-sm font-semibold mb-4 ${heading}`}>Detect from Photo</p>
                 <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
                     <label className={`cursor-pointer flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border-2 border-dashed ${dm
-                        ? "border-[#2e2e2e] text-gray-400 hover:border-gray-500 hover:text-gray-30 cursor-pointer0"
+                        ? "border-[#2e2e2e] text-gray-400 hover:border-gray-500 hover:text-gray-300 cursor-pointer"
                         : "border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700 cursor-pointer"
                         }`}>
                         <input type="file" accept="image/*" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
