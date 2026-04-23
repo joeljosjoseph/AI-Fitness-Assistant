@@ -2,9 +2,8 @@ import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
 
 export default async function handler(req, res) {
-    await connectDB();
-
     try {
+        await connectDB();
         // Accept both POST and PUT methods
         if (req.method === "POST" || req.method === "PUT") {
             const { userId, email, personalDetails, fitnessGoals, schedule } = req.body;

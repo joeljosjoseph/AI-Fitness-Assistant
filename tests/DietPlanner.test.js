@@ -33,6 +33,8 @@ const mockDietResult = {
 global.fetch = jest.fn((url) => {
     if (url.includes("/api/users/me"))
         return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, user: mockUser }) });
+    if (url.includes("/api/fridge/items"))
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, items: [] }) });
     if (url.includes("/diet/info"))
         return Promise.resolve({ ok: true, json: () => Promise.resolve({ genders: ["Male", "Female"], goals: ["Lose Weight", "Build Muscle"] }) });
     if (url.includes("/diet/predict"))
@@ -122,6 +124,8 @@ test("does not show results when API returns an error", async () => {
             return Promise.resolve({ ok: false, json: () => Promise.resolve({ detail: "Server error" }) });
         if (url.includes("/api/users/me"))
             return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, user: mockUser }) });
+        if (url.includes("/api/fridge/items"))
+            return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, items: [] }) });
         if (url.includes("/diet/info"))
             return Promise.resolve({ ok: true, json: () => Promise.resolve({ genders: ["Male", "Female"], goals: ["Lose Weight", "Build Muscle"] }) });
     });

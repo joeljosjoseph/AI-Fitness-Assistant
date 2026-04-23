@@ -2,13 +2,13 @@ import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
 
 export default async function handler(req, res) {
-    await connectDB();
-
     if (req.method !== "POST") {
         return res.status(405).json({ error: "Only POST method allowed" });
     }
 
     try {
+        await connectDB();
+
         const { email, password } = req.body;
 
         if (!email || !password) {
@@ -30,7 +30,7 @@ export default async function handler(req, res) {
         return res.status(200).json({
             success: true,
             user: {
-                id: user._id,
+                id: String(user._id),
                 fullName: user.login.fullName,
                 email: user.login.email,
             }

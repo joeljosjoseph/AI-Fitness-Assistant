@@ -2,9 +2,9 @@ import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
 
 export default async function handler(req, res) {
-    await connectDB();
-
     try {
+        await connectDB();
+
         if (req.method === "POST") {
             const { login } = req.body;
             // Check if email already exists
@@ -14,7 +14,7 @@ export default async function handler(req, res) {
             }
 
             // Create new user
-            console.log(req.body);
+            // console.log(req.body);
 
             const user = await User.create(req.body);
             return res.status(200).json({ success: true, user });

@@ -2,9 +2,8 @@ import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
 
 export default async function handler(req, res) {
-    await connectDB();
-
     try {
+        await connectDB();
         if (req.method === "POST") {
             const data = req.body; // Pages Router parses JSON automatically if using `body-parser` (Next.js does this)
             const user = await User.create(data);

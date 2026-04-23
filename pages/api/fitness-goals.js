@@ -2,9 +2,8 @@ import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
 
 export default async function handler(req, res) {
-    await connectDB();
-
     try {
+        await connectDB();
         if (req.method === "GET") {
             const { userId } = req.query;
             const user = await User.findById(userId, "fitnessGoals");
