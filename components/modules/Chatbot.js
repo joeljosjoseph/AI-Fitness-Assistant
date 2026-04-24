@@ -2,8 +2,6 @@
 
 import { MessageCircle, Send, Loader2, Dumbbell } from 'lucide-react';
 import React, { useState, useRef, useEffect } from 'react';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { createProfileSummary, processLine } from '@/utils/functions';
 import { PROFILE_QUESTIONS, SYSTEM_INSTRUCTION, WORKOUT_SYSTEM_INSTRUCTION } from '@/utils/constants';
 
 // ─── Markdown renderer ───────────────────────────────────────────────────────
@@ -239,13 +237,13 @@ const Chatbot = ({ darkMode = false }) => {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [checkingProfile, setCheckingProfile] = useState(true);
-    const chatSessionRef = useRef(null);
     const messagesContainerRef = useRef(null);
     const messagesEndRef = useRef(null);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [collectingProfile, setCollectingProfile] = useState(false);
     const [profile, setProfile] = useState({});
     const [hasExistingProfile, setHasExistingProfile] = useState(false);
+    const [chatHistory, setChatHistory] = useState([]);
 
     // ── Theme tokens ──
     const dm = darkMode;
@@ -265,18 +263,39 @@ const Chatbot = ({ darkMode = false }) => {
         }, 0);
     };
 
-    const initChatSession = (systemInstruction) => {
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest', systemInstruction });
-        chatSessionRef.current = model.startChat({ history: [], generationConfig: { maxOutputTokens: 8192, temperature: 0.7 } });
+    const requestGeminiText = async ({ message, history = [], systemInstruction }) => {
+        const response = await fetch('/api/gemini/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message, history, systemInstruction }),
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to generate Gemini response');
+        }
+
+        return data.text;
+    };
+
+    const initChatSession = () => {};
+
+    const appendChatTurn = (userMessage, assistantMessage) => {
+        setChatHistory((prev) => [
+            ...prev,
+            { role: 'user', content: userMessage },
+            { role: 'assistant', content: assistantMessage },
+        ]);
     };
 
     useEffect(() => {
         const init = async () => {
-            try { initChatSession(SYSTEM_INSTRUCTION); await checkExistingProfile(); }
+            try { await checkExistingProfile(); }
             catch (err) { console.error(err); setCheckingProfile(false); }
         };
         init();
+        // checkExistingProfile is intentionally used once on mount to bootstrap the chat UI.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const checkExistingProfile = async () => {
@@ -293,7 +312,7 @@ const Chatbot = ({ darkMode = false }) => {
             const hasSchedule = user.schedule?.workoutDaysPerWeek && user.schedule?.timePerWorkout;
             if (hasPersonalDetails && hasFitnessGoals && hasSchedule) {
                 setHasExistingProfile(true); setCollectingProfile(false);
-                initChatSession(WORKOUT_SYSTEM_INSTRUCTION);
+                setChatHistory([]);
                 setMessages([{ role: 'assistant', content: `Welcome back, ${user.login?.fullName || 'there'}! 👋\n\nI see you already have a profile set up. How can I help you today?\n\nYou can ask me about:\n- **Workout advice** and exercise tips\n- **Nutrition guidance**\n- **Form corrections**\n- **Modifying** your workout plan\n- **Progress tracking** tips\n- Any fitness-related questions` }]);
             } else { startProfileCollection(); }
         } catch (error) { console.error(error); startProfileCollection(); }
@@ -302,6 +321,7 @@ const Chatbot = ({ darkMode = false }) => {
 
     const startProfileCollection = () => {
         setCollectingProfile(true);
+        setChatHistory([]);
         setMessages([
             { role: 'assistant', content: "Hello! I'm your AI fitness assistant. Before we begin, let's build your fitness profile." },
             { role: 'assistant', content: PROFILE_QUESTIONS[0].question },
@@ -325,14 +345,18 @@ const Chatbot = ({ darkMode = false }) => {
         addMessage('assistant', '⏳ Thanks! Generating your personalized workout plan — this may take a moment...');
         setIsLoading(true);
         try {
-            initChatSession(SYSTEM_INSTRUCTION);
+            
             const workoutDays = parseInt(finalProfile.days_per_week) || 3;
             const timePerWorkout = parseInt(finalProfile.time_per_workout) || 45;
             const enhancedPrompt = `Create a ${workoutDays}-day workout plan.\n\nProfile:\n- Age: ${finalProfile.age} | Gender: ${finalProfile.gender}\n- Height: ${finalProfile.height}cm | Weight: ${finalProfile.weight}kg → ${finalProfile.goalWeight || finalProfile.weight}kg\n- Goal: ${finalProfile.goal}\n- Level: ${finalProfile.level}\n- Equipment: ${finalProfile.equipment}\n- Limitations: ${finalProfile.limitations}\n- Time: ${timePerWorkout} minutes per workout\n\nGenerate EXACTLY ${workoutDays} workout days. Follow your formatting instructions precisely. Label each as ### Day 1: [Focus], ### Day 2: [Focus], etc.`;
-            const result = await chatSessionRef.current.sendMessage(enhancedPrompt);
-            const aiWorkoutText = result.response.text();
+            const aiWorkoutText = await requestGeminiText({
+                message: enhancedPrompt,
+                systemInstruction: WORKOUT_SYSTEM_INSTRUCTION,
+            });
             const weeklySchedule = parseWorkoutPlanToStructured(aiWorkoutText, workoutDays);
             addMessage('assistant', aiWorkoutText, { isWorkoutPlan: true });
+            appendChatTurn(enhancedPrompt, aiWorkoutText);
+            setHasExistingProfile(true);
             const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
             const userId = storedUser._id;
             const email = storedUser?.login?.email;
@@ -360,8 +384,13 @@ const Chatbot = ({ darkMode = false }) => {
         if (collectingProfile) { handleProfileAnswer(userMsg); return; }
         setIsLoading(true);
         try {
-            const result = await chatSessionRef.current.sendMessage(userMsg);
-            addMessage('assistant', result.response.text());
+            const responseText = await requestGeminiText({
+                message: userMsg,
+                history: chatHistory,
+                systemInstruction: hasExistingProfile ? WORKOUT_SYSTEM_INSTRUCTION : SYSTEM_INSTRUCTION,
+            });
+            addMessage('assistant', responseText);
+            appendChatTurn(userMsg, responseText);
         } catch (e) { console.error(e); addMessage('assistant', '❌ I encountered an error. Please try again.'); }
         setIsLoading(false);
     };

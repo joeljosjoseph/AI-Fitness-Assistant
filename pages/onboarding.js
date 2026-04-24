@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { ChevronRight, ChevronLeft, Dumbbell, Check } from 'lucide-react';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { WORKOUT_SYSTEM_INSTRUCTION } from '@/utils/constants';
 import { WorkoutPlanCard, parseWorkoutPlanToStructured } from '@/components/modules/Chatbot';
 
@@ -169,7 +168,7 @@ export default function OnboardingPage() {
                 inputRef.current?.focus();
             }, 0);
         }
-    }, [step, current.key, answers]);
+    }, [step, current.key, current.type, answers]);
 
     const canProceed = () => {
         if (current.type === 'card') return !!answers[current.key];
@@ -182,6 +181,21 @@ export default function OnboardingPage() {
         setDirection(dir);
         setAnimating(true);
         setTimeout(() => { fn(); setAnimating(false); }, 280);
+    };
+
+    const requestGeminiText = async ({ message, history = [], systemInstruction }) => {
+        const response = await fetch('/api/gemini/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message, history, systemInstruction }),
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to generate Gemini response');
+        }
+
+        return data.text;
     };
 
     const next = () => {
@@ -211,23 +225,15 @@ export default function OnboardingPage() {
             const userId = storedUser._id;
 
             // ── 1. Generate workout plan via Gemini ──────────────────────────
-            const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-            const model = genAI.getGenerativeModel({
-                model: 'gemini-flash-latest',
-                systemInstruction: WORKOUT_SYSTEM_INSTRUCTION,
-            });
-            const chat = model.startChat({
-                history: [],
-                generationConfig: { maxOutputTokens: 8192, temperature: 0.7 },
-            });
-
             const workoutDays = parseInt(finalAnswers.days_per_week) || 3;
             const timePerWorkout = parseInt(finalAnswers.time_per_workout) || 45;
 
             const prompt = `Create a ${workoutDays}-day workout plan.\n\nProfile:\n- Age: ${finalAnswers.age} | Gender: ${finalAnswers.gender}\n- Height: ${finalAnswers.height}cm | Weight: ${finalAnswers.weight}kg → ${finalAnswers.goalWeight || finalAnswers.weight}kg\n- Goal: ${finalAnswers.goal}\n- Level: ${finalAnswers.level}\n- Equipment: ${finalAnswers.equipment}\n- Limitations: ${finalAnswers.limitations}\n- Time: ${timePerWorkout} minutes per workout\n\nGenerate EXACTLY ${workoutDays} workout days. Follow your formatting instructions precisely. Label each as ### Day 1: [Focus], ### Day 2: [Focus], etc.`;
 
-            const result = await chat.sendMessage(prompt);
-            const aiWorkoutText = result.response.text();
+            const aiWorkoutText = await requestGeminiText({
+                message: prompt,
+                systemInstruction: WORKOUT_SYSTEM_INSTRUCTION,
+            });
 
             // ── 2. Parse into structured format ─────────────────────────────
             const weeklySchedule = parseWorkoutPlanToStructured(aiWorkoutText, workoutDays);
