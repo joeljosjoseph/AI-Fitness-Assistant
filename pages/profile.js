@@ -153,9 +153,9 @@ export default function UserProfile() {
                 {/* Quick stats */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {[
-                        { label: 'Current weight', value: profile.weight, unit: 'lbs' },
-                        { label: 'Target weight', value: profile.targetWeight, unit: 'lbs' },
-                        { label: 'Height', value: profile.height, unit: 'in' },
+                        { label: 'Current weight', value: profile.weight, unit: 'kgs' },
+                        { label: 'Target weight', value: profile.targetWeight, unit: 'kgs' },
+                        { label: 'Height', value: profile.height, unit: 'cm' },
                         { label: 'Age', value: profile.age, unit: 'yrs' },
                     ].map(stat => (
                         <div key={stat.label} className={`border rounded-2xl p-4 ${dm ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-white border-[#e5e7eb]'}`}>

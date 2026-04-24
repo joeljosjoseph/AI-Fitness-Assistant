@@ -299,13 +299,13 @@ export default function Settings() {
                                 {['Male', 'Female', 'Other'].map(o => <option key={o}>{o}</option>)}
                             </select>
                         </Field>
-                        <Field label="Height (inches)" dm={dm}>
+                        <Field label="Height (cm)" dm={dm}>
                             <input type="number" value={personal.height} onChange={e => setPersonal(p => ({ ...p, height: e.target.value }))} className={inputCls} placeholder="e.g. 70" />
                         </Field>
-                        <Field label="Current weight (lbs)" dm={dm}>
+                        <Field label="Current weight (kgs)" dm={dm}>
                             <input type="number" value={personal.weight} onChange={e => setPersonal(p => ({ ...p, weight: e.target.value }))} className={inputCls} placeholder="e.g. 160" />
                         </Field>
-                        <Field label="Target weight (lbs)" dm={dm}>
+                        <Field label="Target weight (kgs)" dm={dm}>
                             <input type="number" value={personal.targetWeight} onChange={e => setPersonal(p => ({ ...p, targetWeight: e.target.value }))} className={inputCls} placeholder="e.g. 150" />
                         </Field>
                     </div>
