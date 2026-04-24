@@ -1,16 +1,10 @@
-/* dashboard.js – redesigned with dark/light mode */
+/* dashboard.js - redesigned with dark/light mode */
 import React, { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { User, Menu, Sun, Moon } from "lucide-react";
 import Sidebar from "../components/Sidebar";
-import HomeComponent from "../components/modules/HomeComponent";
-import Posture from "@/components/modules/Posture";
-import Chatbot from "@/components/modules/Chatbot";
 import { useRouter } from "next/router";
-import Hydration from "@/components/modules/Hydration";
-import Workout from "@/components/modules/Workout";
-import DietPlanner from "@/components/modules/DietPlanner";
-import FridgeDetector from "@/components/modules/FridgeDetector";
-import { getAuthHeaders } from "@/utils/auth";
+import { fetchUserProfile } from "@/utils/user-api";
 
 const TAB_LABELS = {
   dashboard: "Dashboard",
@@ -22,6 +16,35 @@ const TAB_LABELS = {
   fridgeDetector: "Fridge Detector",
   settings: "Settings",
 };
+
+const TabFallback = ({ darkMode }) => (
+  <div className={`rounded-2xl p-10 text-center ${darkMode ? "bg-[#1c1c1c] text-gray-400" : "bg-white text-gray-500"}`}>
+    <div className="mx-auto mb-3 w-7 h-7 rounded-full border-2 border-gray-300 border-t-gray-700 animate-spin" />
+    <p className="font-medium">Loading section...</p>
+  </div>
+);
+
+const HomeComponent = dynamic(() => import("../components/modules/HomeComponent"), {
+  loading: () => <TabFallback darkMode={false} />,
+});
+const Posture = dynamic(() => import("@/components/modules/Posture"), {
+  loading: () => <TabFallback darkMode={false} />,
+});
+const Chatbot = dynamic(() => import("@/components/modules/Chatbot"), {
+  loading: () => <TabFallback darkMode={false} />,
+});
+const Hydration = dynamic(() => import("@/components/modules/Hydration"), {
+  loading: () => <TabFallback darkMode={false} />,
+});
+const Workout = dynamic(() => import("@/components/modules/Workout"), {
+  loading: () => <TabFallback darkMode={false} />,
+});
+const DietPlanner = dynamic(() => import("@/components/modules/DietPlanner"), {
+  loading: () => <TabFallback darkMode={false} />,
+});
+const FridgeDetector = dynamic(() => import("@/components/modules/FridgeDetector"), {
+  loading: () => <TabFallback darkMode={false} />,
+});
 
 export default function WorkoutDashboard() {
   const router = useRouter();
@@ -48,21 +71,20 @@ export default function WorkoutDashboard() {
           router.push("/");
           return;
         }
+
         try {
           const userData = JSON.parse(storedUser);
-          if (!userData?._id) { router.push("/"); return; }
+          if (!userData?._id) {
+            router.push("/");
+            return;
+          }
+
           setUser(userData);
           setFirstName(userData?.login?.fullName?.split(" ")[0] || "User");
 
-          const res = await fetch(`/api/users/me?userId=${userData._id}`, {
-            headers: getAuthHeaders(),
-          });
-          const data = await res.json();
-          if (data.success && data.user) {
-            setUser(data.user);
-            localStorage.setItem("user", JSON.stringify(data.user));
-            setFirstName(data.user?.login?.fullName?.split(" ")[0] || "User");
-          }
+          const freshUser = await fetchUserProfile(userData._id);
+          setUser(freshUser);
+          setFirstName(freshUser?.login?.fullName?.split(" ")[0] || "User");
         } catch {
           localStorage.removeItem("user");
           router.push("/");
@@ -71,6 +93,7 @@ export default function WorkoutDashboard() {
         router.push("/");
       }
     };
+
     fetchUserData();
   }, [router]);
 
@@ -95,9 +118,7 @@ export default function WorkoutDashboard() {
         toggleDark={toggleDark}
       />
 
-      {/* Main */}
       <main className="lg:ml-60 min-h-screen">
-        {/* Top bar */}
         <header className={`
           sticky top-0 z-30 flex items-center justify-between
           px-6 py-4 border-b backdrop-blur-md
@@ -107,7 +128,6 @@ export default function WorkoutDashboard() {
           }
         `}>
           <div className="flex items-center gap-4">
-            {/* Mobile menu */}
             <button
               onClick={() => setSidebarOpen(true)}
               className={`lg:hidden p-2 rounded-xl transition-colors cursor-pointer ${darkMode ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-gray-900 hover:bg-gray-200"}`}
@@ -128,7 +148,6 @@ export default function WorkoutDashboard() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Dark mode toggle */}
             <button
               onClick={toggleDark}
               style={{ background: darkMode ? "rgba(255,255,255,0.1)" : "" }}
@@ -144,7 +163,6 @@ export default function WorkoutDashboard() {
               {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
 
-            {/* Profile */}
             <button
               onClick={() => router.push("/profile")}
               className={`
@@ -161,7 +179,6 @@ export default function WorkoutDashboard() {
           </div>
         </header>
 
-        {/* Content */}
         <div className="p-6">
           {activeTab === "dashboard" && <HomeComponent setActiveTab={setActiveTab} darkMode={darkMode} />}
           {activeTab === "workouts" && <Workout darkMode={darkMode} />}
@@ -173,7 +190,7 @@ export default function WorkoutDashboard() {
 
           {!Object.keys(TAB_LABELS).includes(activeTab) && (
             <div className={`rounded-2xl p-10 text-center ${darkMode ? "bg-white/4 text-gray-400" : "bg-white text-gray-500"}`}>
-              <p className="font-medium">{activeTab} — coming soon</p>
+              <p className="font-medium">{activeTab} - coming soon</p>
             </div>
           )}
         </div>

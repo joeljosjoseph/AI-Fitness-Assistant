@@ -6,7 +6,7 @@ import {
     TrendingUp, ArrowLeft, Loader2, X, Settings
 } from 'lucide-react';
 import { useRouter } from 'next/router';
-import { getAuthHeaders } from '../utils/auth';
+import { fetchUserProfile } from '../utils/user-api';
 
 export default function UserProfile() {
     const router = useRouter();
@@ -30,13 +30,7 @@ export default function UserProfile() {
                 const storedUserId = JSON.parse(localStorage.getItem('user') || '{}')._id;
                 if (!storedUserId) { setError('No user ID found. Please log in.'); setLoading(false); return; }
 
-                const response = await fetch(`/api/users/me?userId=${storedUserId}`, {
-                    headers: getAuthHeaders(),
-                });
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.error || 'Failed to fetch user data');
-
-                const u = data.user;
+                const u = await fetchUserProfile(storedUserId, { force: true });
                 setProfile({
                     name: u.login?.fullName || '',
                     age: u.personalDetails?.age?.toString() || '—',

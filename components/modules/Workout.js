@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Dumbbell, Clock, ChevronRight } from 'lucide-react';
 import { getAuthHeaders } from '@/utils/auth';
+import { fetchUserProfile, invalidateUserCache, storeUserProfile } from '@/utils/user-api';
 
 // ── Strip **bold** markers from a string ────────────────────────────────────
 const stripBold = (str) => str.replace(/\*\*/g, '');
@@ -116,24 +117,20 @@ const Workout = ({ darkMode = false }) => {
                 const userId = storedUser._id;
                 if (!userId) { setError('Not logged in'); setLoading(false); return; }
 
-                const res = await fetch(`/api/users/me?userId=${userId}`, {
-                    headers: getAuthHeaders(),
-                });
-                const data = await res.json();
-                if (!res.ok || !data.user) throw new Error(data.error || 'Failed to fetch');
+                const user = await fetchUserProfile(userId);
 
-                setWorkoutPlan(data.user.workoutPlan || null);
+                setWorkoutPlan(user.workoutPlan || null);
 
                 // Rehydrate checklist if the saved date matches today
-                const saved = data.user.dailyProgress;
+                const saved = user.dailyProgress;
                 if (saved?.date === getTodayString()) {
                     // Store for use once parsedDays are ready
                     setWorkoutPlan(prev => ({
-                        ...(data.user.workoutPlan || {}),
+                        ...(user.workoutPlan || {}),
                         _savedDailyProgress: saved,
                     }));
                 } else {
-                    setWorkoutPlan(data.user.workoutPlan || null);
+                    setWorkoutPlan(user.workoutPlan || null);
                 }
             } catch (err) {
                 setError(err.message);
@@ -194,7 +191,8 @@ const Workout = ({ darkMode = false }) => {
 
             const data = await res.json();
             if (data.success) {
-                localStorage.setItem('user', JSON.stringify(data.user));
+                invalidateUserCache(userId);
+                storeUserProfile(data.user);
             }
         } catch (err) {
             console.error('Failed to save daily progress:', err);
@@ -244,7 +242,10 @@ const Workout = ({ darkMode = false }) => {
             });
 
             const data = await res.json();
-            if (data.success) localStorage.setItem('user', JSON.stringify(data.user));
+            if (data.success) {
+                invalidateUserCache(userId);
+                storeUserProfile(data.user);
+            }
         } catch (err) {
             console.error(err);
         }

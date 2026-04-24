@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Utensils, User, Target, Scale, Ruler, TrendingUp, Loader2, RefreshCw, AlertCircle, Flame, Beef, BookOpen, Dumbbell } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { getAuthHeaders } from '@/utils/auth';
+import { fetchUserProfile } from '@/utils/user-api';
 
 const DietPlanner = ({ darkMode = false }) => {
     const [loading, setLoading] = useState(false);
@@ -63,13 +63,8 @@ const DietPlanner = ({ darkMode = false }) => {
                     setFormData(prev => ({ ...prev, gender: p.personalDetails?.gender || prev.gender, goal: goalMapping[p.personalDetails?.fitnessGoal] || prev.goal, weight_kg: p.personalDetails?.currentWeight || prev.weight_kg, height_cm: p.personalDetails?.height || prev.height_cm }));
                     if (p._id) {
                         setUserId(p._id);
-                        const res = await fetch(`/api/users/me?userId=${p._id}`, {
-                            headers: getAuthHeaders(),
-                        });
-                        const data = await res.json();
-                        if (data.success) {
-                            const user = data.user;
-                            localStorage.setItem('user', JSON.stringify(user));
+                        const user = await fetchUserProfile(p._id);
+                        if (user) {
                             setFormData(prev => ({ ...prev, gender: user.personalDetails?.gender || prev.gender, goal: goalMapping[user.personalDetails?.fitnessGoal] || prev.goal, weight_kg: user.personalDetails?.currentWeight || prev.weight_kg, height_cm: user.personalDetails?.height || prev.height_cm }));
                             try { const fr = await fetch(`/api/fridge/items?userId=${p._id}`); const fj = await fr.json(); if (fj.success && Array.isArray(fj.items) && fj.items.length) { setFridgeItems(fj.items); localStorage.setItem('fridgeItemsForDiet', JSON.stringify(fj.items)); } } catch { }
                         }

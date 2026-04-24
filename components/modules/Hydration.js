@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { Droplets, Thermometer, Wind, Leaf, RotateCcw, Brain, MapPin } from "lucide-react";
-import { getAuthHeaders } from "@/utils/auth";
+import { fetchUserProfile } from "@/utils/user-api";
 
 const STORAGE_KEY = "hydration_history_dataset";
 const getDayKey = (d = new Date()) => d.toISOString().slice(0, 10);
@@ -96,10 +96,13 @@ const Hydration = ({ darkMode = false }) => {
                 if (p.hydration) { setDailyGoal(p.hydration.dailyGoal || 2500); setWaterIntake(p.hydration.currentProgress || 0); setWorkoutIntensity(p.hydration.workoutIntensity || "moderate"); setNotifications(p.hydration.reminder || false); }
                 if (p._id) {
                     setUserId(p._id);
-                    const res = await fetch(`/api/users/me?userId=${p._id}`, {
-                        headers: getAuthHeaders(),
-                    });
-                    if (res.ok) { const { user } = await res.json(); if (user?.hydration) { setWaterIntake(user.hydration.currentProgress || 0); setDailyGoal(user.hydration.dailyGoal || 2500); setWorkoutIntensity(user.hydration.workoutIntensity || "moderate"); setNotifications(user.hydration.reminder || false); localStorage.setItem("user", JSON.stringify(user)); } }
+                    const user = await fetchUserProfile(p._id);
+                    if (user?.hydration) {
+                        setWaterIntake(user.hydration.currentProgress || 0);
+                        setDailyGoal(user.hydration.dailyGoal || 2500);
+                        setWorkoutIntensity(user.hydration.workoutIntensity || "moderate");
+                        setNotifications(user.hydration.reminder || false);
+                    }
                 }
             } catch (e) { console.error(e); } finally { setLoadingUser(false); }
         };

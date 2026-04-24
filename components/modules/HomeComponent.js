@@ -1,7 +1,7 @@
 /* HomeComponent.js */
 import React, { useEffect, useState } from "react";
 import { Camera, ChevronRight, Clock, Droplets, Dumbbell, MessageCircle, Refrigerator, Flame } from "lucide-react";
-import { getAuthHeaders } from "@/utils/auth";
+import { fetchUserProfile } from "@/utils/user-api";
 
 const buildHydration = (hydration) => {
     const consumed = hydration?.currentProgress || 0;
@@ -62,16 +62,10 @@ const HomeComponent = ({ setActiveTab, darkMode }) => {
                 setHydrationData(buildHydration(parsed.hydration));
                 setTodayWorkout(resolveTodayWorkout(parsed.workoutPlan));
                 if (parsed._id) {
-                    const res = await fetch(`/api/users/me?userId=${parsed._id}`, {
-                        headers: getAuthHeaders(),
-                    });
-                    const data = await res.json();
-                    if (data.success && data.user) {
-                        setUser(data.user);
-                        setHydrationData(buildHydration(data.user.hydration));
-                        setTodayWorkout(resolveTodayWorkout(data.user.workoutPlan));
-                        localStorage.setItem("user", JSON.stringify(data.user));
-                    }
+                    const freshUser = await fetchUserProfile(parsed._id);
+                    setUser(freshUser);
+                    setHydrationData(buildHydration(freshUser.hydration));
+                    setTodayWorkout(resolveTodayWorkout(freshUser.workoutPlan));
                 }
             } catch (err) { console.error(err); }
             finally { setLoading(false); }

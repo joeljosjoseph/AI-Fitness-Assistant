@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { getAuthHeaders } from '../utils/auth';
+import { fetchUserProfile, invalidateUserCache, storeUserProfile } from '../utils/user-api';
 
 export default function Settings() {
     const router = useRouter();
@@ -60,12 +61,7 @@ export default function Settings() {
                 if (!id) { router.push('/'); return; }
                 setUserId(id);
 
-                const res = await fetch(`/api/users/me?userId=${id}`, {
-                    headers: getAuthHeaders(),
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error);
-                const u = data.user;
+                const u = await fetchUserProfile(id);
 
                 setPersonal({
                     name: u.login?.fullName || '',
@@ -111,9 +107,11 @@ export default function Settings() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        localStorage.setItem('user', JSON.stringify({
-            ...JSON.parse(localStorage.getItem('user') || '{}'), ...data.user,
-        }));
+        invalidateUserCache(userId);
+        storeUserProfile({
+            ...JSON.parse(localStorage.getItem('user') || '{}'),
+            ...data.user,
+        });
         return data;
     };
 

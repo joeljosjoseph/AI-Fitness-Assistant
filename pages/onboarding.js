@@ -6,6 +6,7 @@ import { ChevronRight, ChevronLeft, Dumbbell, Check } from 'lucide-react';
 import { WORKOUT_SYSTEM_INSTRUCTION } from '@/utils/constants';
 import { WorkoutPlanCard, parseWorkoutPlanToStructured } from '@/components/modules/Chatbot';
 import { getAuthHeaders } from '@/utils/auth';
+import { invalidateUserCache, storeUserProfile } from '@/utils/user-api';
 
 // ─── Question definitions ─────────────────────────────────────────────────────
 const STEPS = [
@@ -275,7 +276,8 @@ export default function OnboardingPage() {
             });
             const data = await res.json();
             if (data.success) {
-                localStorage.setItem('user', JSON.stringify(data.user));
+                invalidateUserCache(userId);
+                storeUserProfile(data.user);
             }
 
             // ── 4. Show plan before redirecting ─────────────────────────────

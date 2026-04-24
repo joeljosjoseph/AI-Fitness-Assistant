@@ -4,6 +4,7 @@ import { MessageCircle, Send, Loader2, Dumbbell } from 'lucide-react';
 import React, { useState, useRef, useEffect } from 'react';
 import { PROFILE_QUESTIONS, SYSTEM_INSTRUCTION, WORKOUT_SYSTEM_INSTRUCTION } from '@/utils/constants';
 import { getAuthHeaders } from '@/utils/auth';
+import { fetchUserProfile } from '@/utils/user-api';
 
 // ─── Markdown renderer ───────────────────────────────────────────────────────
 export const processBoldInline = (text, dm) => {
@@ -304,12 +305,7 @@ const Chatbot = ({ darkMode = false }) => {
             const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
             const storedUserId = storedUser._id;
             if (!storedUserId) { startProfileCollection(); return; }
-            const response = await fetch(`/api/users/me?userId=${storedUserId}`, {
-                headers: getAuthHeaders(),
-            });
-            const data = await response.json();
-            if (!response.ok || !data.user) { startProfileCollection(); return; }
-            const user = data.user;
+            const user = await fetchUserProfile(storedUserId);
             const hasPersonalDetails = user.personalDetails?.age && user.personalDetails?.gender && user.personalDetails?.currentWeight;
             const hasFitnessGoals = user.fitnessGoals?.primaryGoal && user.fitnessGoals?.fitnessLevel;
             const hasSchedule = user.schedule?.workoutDaysPerWeek && user.schedule?.timePerWorkout;
