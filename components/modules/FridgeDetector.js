@@ -43,6 +43,16 @@ const FridgeDetector = ({ setActiveTab, darkMode = false }) => {
 
     const grouped = useMemo(() => [...items].sort((a, b) => String(a.name).localeCompare(String(b.name))), [items]);
 
+    useEffect(() => {
+        try {
+            if (grouped.length) {
+                localStorage.setItem("fridgeItemsForDiet", JSON.stringify(grouped));
+            } else {
+                localStorage.removeItem("fridgeItemsForDiet");
+            }
+        } catch { }
+    }, [grouped]);
+
     const handleDetect = async () => {
         if (!userId) { toast.error("No user found. Please login again."); return; }
         if (!file) { toast.info("Please upload a fridge photo first."); return; }
@@ -51,8 +61,7 @@ const FridgeDetector = ({ setActiveTab, darkMode = false }) => {
             const form = new FormData();
             form.append("image", file);
             form.append("userId", userId);
-            // ✅ Goes through Next.js API route → runs detection → saves to DB
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/fridge/detect`, { method: "POST", body: form });
+            const res = await fetch(`/api/fridge/detect`, { method: "POST", body: form });
             const data = await res.json();
 
             if (!res.ok || !data.items) throw new Error(data.error || "Detection failed");
@@ -84,7 +93,6 @@ const FridgeDetector = ({ setActiveTab, darkMode = false }) => {
     };
 
     const sendToDietPlanner = () => {
-        localStorage.setItem("fridgeItemsForDiet", JSON.stringify(grouped));
         toast.success("Fridge items sent to Diet Planner");
         if (setActiveTab) setActiveTab("dietPlanner");
     };

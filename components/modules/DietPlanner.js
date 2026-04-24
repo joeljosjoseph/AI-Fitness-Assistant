@@ -63,11 +63,20 @@ const DietPlanner = ({ darkMode = false }) => {
                     setFormData(prev => ({ ...prev, gender: p.personalDetails?.gender || prev.gender, goal: goalMapping[p.personalDetails?.fitnessGoal] || prev.goal, weight_kg: p.personalDetails?.currentWeight || prev.weight_kg, height_cm: p.personalDetails?.height || prev.height_cm }));
                     if (p._id) {
                         setUserId(p._id);
-                        const user = await fetchUserProfile(p._id);
-                        if (user) {
-                            setFormData(prev => ({ ...prev, gender: user.personalDetails?.gender || prev.gender, goal: goalMapping[user.personalDetails?.fitnessGoal] || prev.goal, weight_kg: user.personalDetails?.currentWeight || prev.weight_kg, height_cm: user.personalDetails?.height || prev.height_cm }));
-                            try { const fr = await fetch(`/api/fridge/items?userId=${p._id}`); const fj = await fr.json(); if (fj.success && Array.isArray(fj.items) && fj.items.length) { setFridgeItems(fj.items); localStorage.setItem('fridgeItemsForDiet', JSON.stringify(fj.items)); } } catch { }
-                        }
+                        try {
+                            const user = await fetchUserProfile(p._id);
+                            if (user) {
+                                setFormData(prev => ({ ...prev, gender: user.personalDetails?.gender || prev.gender, goal: goalMapping[user.personalDetails?.fitnessGoal] || prev.goal, weight_kg: user.personalDetails?.currentWeight || prev.weight_kg, height_cm: user.personalDetails?.height || prev.height_cm }));
+                            }
+                        } catch { }
+                        try {
+                            const fr = await fetch(`/api/fridge/items?userId=${p._id}`);
+                            const fj = await fr.json();
+                            if (fj.success && Array.isArray(fj.items)) {
+                                setFridgeItems(fj.items);
+                                localStorage.setItem('fridgeItemsForDiet', JSON.stringify(fj.items));
+                            }
+                        } catch { }
                     }
                 } catch { localStorage.removeItem('user'); }
             }
@@ -89,10 +98,8 @@ const DietPlanner = ({ darkMode = false }) => {
         setLoading(true);
         try {
             const localBody = { gender: formData.gender, goal: formData.goal, weight_kg: parseFloat(formData.weight_kg), height_cm: parseFloat(formData.height_cm), fridgeItems };
-            const remoteBody = { gender: formData.gender, goal: formData.goal, weight_kg: parseFloat(formData.weight_kg), height_cm: parseFloat(formData.height_cm) };
             let response = null;
-            try { response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/diet/predict`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(remoteBody) }); } catch { response = null; }
-            if ((!response || !response.ok) && apiBase) { try { response = await fetch(`/api/diet/predict`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(localBody) }); } catch { response = null; } }
+            try { response = await fetch(`/api/diet/predict`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(localBody) }); } catch { response = null; }
             if (!response || !response.ok) { const e = response ? await response.json().catch(() => ({})) : {}; throw new Error(e.detail || e.error || 'Failed to get diet plan'); }
             const data = await response.json();
             setResult({ ...data, recipes: Array.isArray(data.recipes) ? data.recipes : [] });

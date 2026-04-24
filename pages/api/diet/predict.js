@@ -1,7 +1,7 @@
 import { bmi, bmiCategory, dietTargets } from "@/lib/dietHeuristics";
 import { requestFastApi } from "@/lib/fastApiClient";
 import { lookupGymRow } from "@/lib/gymCsvIndex";
-import { buildFridgeRecipes } from "@/lib/recipesFromFridge";
+import { buildFridgeMealPlanDetails, buildFridgeRecipes } from "@/lib/recipesFromFridge";
 
 export default async function handler(req, res) {
     if (req.method !== "POST") {
@@ -76,6 +76,10 @@ export default async function handler(req, res) {
         calories: targets.calories,
         protein: targets.protein,
     });
+    const mealPlanDetails = buildFridgeMealPlanDetails(fridgeItems, {
+        calories: targets.calories,
+        protein: targets.protein,
+    }) || targets.meal_plan_details;
 
     return res.status(200).json({
         gender,
@@ -85,7 +89,7 @@ export default async function handler(req, res) {
         meal_plan_category: targets.meal_plan_category,
         calories: targets.calories,
         protein: targets.protein,
-        meal_plan_details: targets.meal_plan_details,
+        meal_plan_details: mealPlanDetails,
         gym,
         gym_source,
         recipes,
