@@ -3,6 +3,7 @@
 import { MessageCircle, Send, Loader2, Dumbbell } from 'lucide-react';
 import React, { useState, useRef, useEffect } from 'react';
 import { PROFILE_QUESTIONS, SYSTEM_INSTRUCTION, WORKOUT_SYSTEM_INSTRUCTION } from '@/utils/constants';
+import { getAuthHeaders } from '@/utils/auth';
 
 // ─── Markdown renderer ───────────────────────────────────────────────────────
 export const processBoldInline = (text, dm) => {
@@ -303,7 +304,9 @@ const Chatbot = ({ darkMode = false }) => {
             const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
             const storedUserId = storedUser._id;
             if (!storedUserId) { startProfileCollection(); return; }
-            const response = await fetch(`/api/users/me?userId=${storedUserId}`);
+            const response = await fetch(`/api/users/me?userId=${storedUserId}`, {
+                headers: getAuthHeaders(),
+            });
             const data = await response.json();
             if (!response.ok || !data.user) { startProfileCollection(); return; }
             const user = data.user;
@@ -368,7 +371,11 @@ const Chatbot = ({ darkMode = false }) => {
                 workoutPlan: { planName: `${workoutDays}-Day Workout Plan`, fullPlan: aiWorkoutText, weeklySchedule, structure: `${workoutDays} days/week`, summary: `${workoutDays}-day plan for ${finalProfile.goal}, ${timePerWorkout} min/session` },
             };
             if (userId) payload.userId = userId; else payload.email = email;
-            const res = await fetch('/api/users/me', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, updateData: payload }) });
+            const res = await fetch('/api/users/me', {
+                method: 'PUT',
+                headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify({ userId, updateData: payload }),
+            });
             const data = await res.json();
             if (data.success) { localStorage.setItem('user', JSON.stringify(data.user)); addMessage('assistant', `✅ Your **${workoutDays}-day workout plan** has been saved!`); initChatSession(WORKOUT_SYSTEM_INSTRUCTION); }
             else { addMessage('assistant', '⚠️ Plan generated but could not be saved. Please try again.'); }

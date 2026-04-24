@@ -5,6 +5,7 @@ import { useRouter } from 'next/router';
 import { ChevronRight, ChevronLeft, Dumbbell, Check } from 'lucide-react';
 import { WORKOUT_SYSTEM_INSTRUCTION } from '@/utils/constants';
 import { WorkoutPlanCard, parseWorkoutPlanToStructured } from '@/components/modules/Chatbot';
+import { getAuthHeaders } from '@/utils/auth';
 
 // ─── Question definitions ─────────────────────────────────────────────────────
 const STEPS = [
@@ -269,7 +270,7 @@ export default function OnboardingPage() {
 
             const res = await fetch('/api/users/me', {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ userId, updateData }),
             });
             const data = await res.json();

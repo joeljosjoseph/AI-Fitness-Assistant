@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Dumbbell, Clock, ChevronRight } from 'lucide-react';
+import { getAuthHeaders } from '@/utils/auth';
 
 // ── Strip **bold** markers from a string ────────────────────────────────────
 const stripBold = (str) => str.replace(/\*\*/g, '');
@@ -115,7 +116,9 @@ const Workout = ({ darkMode = false }) => {
                 const userId = storedUser._id;
                 if (!userId) { setError('Not logged in'); setLoading(false); return; }
 
-                const res = await fetch(`/api/users/me?userId=${userId}`);
+                const res = await fetch(`/api/users/me?userId=${userId}`, {
+                    headers: getAuthHeaders(),
+                });
                 const data = await res.json();
                 if (!res.ok || !data.user) throw new Error(data.error || 'Failed to fetch');
 
@@ -177,7 +180,7 @@ const Workout = ({ darkMode = false }) => {
 
             const res = await fetch('/api/users/me', {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({
                     userId,
                     action: 'saveDailyProgress',
@@ -224,7 +227,7 @@ const Workout = ({ darkMode = false }) => {
 
             const res = await fetch('/api/users/me', {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({
                     userId,
                     action: 'completeWorkout',

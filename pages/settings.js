@@ -7,6 +7,7 @@ import {
     Trash2, AlertTriangle, Eye, EyeOff, User, Target
 } from 'lucide-react';
 import { useRouter } from 'next/router';
+import { getAuthHeaders } from '../utils/auth';
 
 export default function Settings() {
     const router = useRouter();
@@ -59,7 +60,9 @@ export default function Settings() {
                 if (!id) { router.push('/'); return; }
                 setUserId(id);
 
-                const res = await fetch(`/api/users/me?userId=${id}`);
+                const res = await fetch(`/api/users/me?userId=${id}`, {
+                    headers: getAuthHeaders(),
+                });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error);
                 const u = data.user;
@@ -103,7 +106,7 @@ export default function Settings() {
     const putUser = async (body) => {
         const res = await fetch('/api/users/me', {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({ userId, ...body }),
         });
         const data = await res.json();
@@ -219,7 +222,10 @@ export default function Settings() {
     const handleDeleteAccount = async () => {
         setDangerLoading(true);
         try {
-            const res = await fetch(`/api/users/me?userId=${userId}`, { method: 'DELETE' });
+            const res = await fetch(`/api/users/me?userId=${userId}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders(),
+            });
             if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
             localStorage.clear();
             router.push('/');

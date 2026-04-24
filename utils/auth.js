@@ -1,7 +1,21 @@
 import { useEffect } from "react";
 
+export function getAuthToken() {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("token");
+}
+
+export function getAuthHeaders(extraHeaders = {}) {
+    const token = getAuthToken();
+
+    return token
+        ? { ...extraHeaders, Authorization: `Bearer ${token}` }
+        : { ...extraHeaders };
+}
+
 export function logout(router) {
     localStorage.removeItem("user");
+    localStorage.removeItem("token");
     localStorage.removeItem("fridgeItemsForDiet")
     router.push("/");
 }
@@ -9,7 +23,8 @@ export function logout(router) {
 export function useRequireAuth(router) {
     useEffect(() => {
         const user = localStorage.getItem("user");
-        if (!user) {
+        const token = localStorage.getItem("token");
+        if (!user || !token) {
             router.push("/");
         }
     }, [router]);

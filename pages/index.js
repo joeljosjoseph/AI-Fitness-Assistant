@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Bell, Loader2 } from "lucide-react";
 import { useRouter } from "next/router";
 import { Bounce, ToastContainer, toast } from "react-toastify";
-import { validateEmail, validatePassword } from "../utils/auth";
+import { getAuthHeaders, validateEmail, validatePassword } from "../utils/auth";
 
 async function parseApiJson(res) {
   const text = await res.text();
@@ -90,9 +90,15 @@ export default function AuthPage() {
 
         toast.success("Login successful!");
 
+        if (data.token) {
+          localStorage.setItem("token", data.token);
+        }
+
         if (data.user && data.user.id) {
           try {
-            const userRes = await fetch(`/api/users/me?userId=${encodeURIComponent(data.user.id)}`);
+            const userRes = await fetch(`/api/users/me?userId=${encodeURIComponent(data.user.id)}`, {
+              headers: getAuthHeaders(),
+            });
             const userData = await parseApiJson(userRes);
 
             if (userData.success && userData.user) {
@@ -161,6 +167,9 @@ export default function AuthPage() {
         toast.success("Sign up successful!");
 
         if (data.user) {
+          if (data.token) {
+            localStorage.setItem("token", data.token);
+          }
           localStorage.setItem("user", JSON.stringify(data.user));
           if (data?.user?.personalDetails?.age) {
             setTimeout(() => router.push("/dashboard"), 500);

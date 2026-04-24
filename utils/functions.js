@@ -1,3 +1,5 @@
+import { getAuthHeaders } from "./auth";
+
 // Split content into sections
 export const formatContent = (text) => {
     // Split by numbered lists (1. 2. 3. etc.)
@@ -83,7 +85,9 @@ export const processLine = (line, idx) => {
 export const getUserDetails = async (data) => {
     // console.log(data.user.id);
 
-    const userRes = await fetch(`/api/users/me?userId=${data.user?.id}`);
+    const userRes = await fetch(`/api/users/me?userId=${data.user?.id}`, {
+        headers: getAuthHeaders(),
+    });
     const userData = await userRes.json();
     // console.log(userData);
 

@@ -10,6 +10,7 @@ import Hydration from "@/components/modules/Hydration";
 import Workout from "@/components/modules/Workout";
 import DietPlanner from "@/components/modules/DietPlanner";
 import FridgeDetector from "@/components/modules/FridgeDetector";
+import { getAuthHeaders } from "@/utils/auth";
 
 const TAB_LABELS = {
   dashboard: "Dashboard",
@@ -53,7 +54,9 @@ export default function WorkoutDashboard() {
           setUser(userData);
           setFirstName(userData?.login?.fullName?.split(" ")[0] || "User");
 
-          const res = await fetch(`/api/users/me?userId=${userData._id}`);
+          const res = await fetch(`/api/users/me?userId=${userData._id}`, {
+            headers: getAuthHeaders(),
+          });
           const data = await res.json();
           if (data.success && data.user) {
             setUser(data.user);
