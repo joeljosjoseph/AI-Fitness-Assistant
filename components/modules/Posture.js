@@ -8,6 +8,7 @@ const PostureCam = ({ darkMode = false }) => {
     const [isTracking, setIsTracking] = useState(false);
     const [sessionId, setSessionId] = useState(null);
     const [stats, setStats] = useState({ reps: 0, calories: 0, angle: null, message: 'Position yourself in frame', fps: 0, detectedLabel: '' });
+    const [poseOverlay, setPoseOverlay] = useState(null);
     const [workout, setWorkout] = useState('Push Up');
     const [mode, setMode] = useState('manual');
     const [targetReps, setTargetReps] = useState(10);
@@ -31,6 +32,31 @@ const PostureCam = ({ darkMode = false }) => {
         : 'bg-white border border-gray-200 text-gray-800 focus:border-gray-400 focus:ring-1 focus:ring-gray-400 disabled:bg-gray-50 disabled:opacity-60';
     const labelCls = `text-[11px] font-semibold uppercase tracking-widest mb-1.5 block ${muted}`;
     const divider = dm ? 'border-[#2a2a2a]' : 'border-gray-100';
+
+    const normalizedPoseOverlay = (() => {
+        if (!poseOverlay) return null;
+
+        const { pixel_points: pixelPoints = {}, points = {}, connections = [], frame_size: frameSize } = poseOverlay;
+        const width = frameSize?.width || videoRef.current?.videoWidth || 640;
+        const height = frameSize?.height || videoRef.current?.videoHeight || 480;
+
+        const resolvedPoints = Object.entries(pixelPoints).reduce((acc, [key, value]) => {
+            if (typeof value?.x === 'number' && typeof value?.y === 'number') {
+                acc[key] = value;
+            }
+            return acc;
+        }, {});
+
+        if (!Object.keys(resolvedPoints).length) {
+            Object.entries(points).forEach(([key, value]) => {
+                if (typeof value?.x === 'number' && typeof value?.y === 'number') {
+                    resolvedPoints[key] = { x: value.x * width, y: value.y * height, visibility: value.visibility };
+                }
+            });
+        }
+
+        return { width, height, points: resolvedPoints, connections };
+    })();
 
     const startCamera = async () => {
         try {
@@ -63,6 +89,7 @@ const PostureCam = ({ darkMode = false }) => {
         const video = videoRef.current;
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
+        if (!ctx) return;
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -79,6 +106,7 @@ const PostureCam = ({ darkMode = false }) => {
                 if (!response.ok) throw new Error('Analysis failed');
                 const data = await response.json();
                 setStats({ reps: data.reps || 0, calories: data.calories || 0, angle: data.angle, message: data.message || 'Keep going!', fps: data.fps || 0, detectedLabel: data.detected_label || '' });
+                setPoseOverlay(data.pose_overlay || null);
                 if (data.done_by_target) handleStop();
             } catch (err) { console.error('Analysis error:', err); }
         }, 'image/jpeg', 0.8);
@@ -94,6 +122,7 @@ const PostureCam = ({ darkMode = false }) => {
 
     const handleStop = () => {
         setIsTracking(false);
+        setPoseOverlay(null);
         if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; stopCamera(); }
     };
 
@@ -104,6 +133,7 @@ const PostureCam = ({ darkMode = false }) => {
             formData.append('session_id', sessionId);
             await fetch(`${API_URL}/reset_session`, { method: 'POST', body: formData });
             setStats({ reps: 0, calories: 0, angle: null, message: 'Position yourself in frame', fps: 0, detectedLabel: '' });
+            setPoseOverlay(null);
         } catch (err) { console.error('Reset error:', err); }
     };
 
@@ -163,6 +193,42 @@ const PostureCam = ({ darkMode = false }) => {
                 <div className="relative bg-gray-950 aspect-video">
                     <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
                     <canvas ref={canvasRef} className="hidden" />
+                    {normalizedPoseOverlay && (
+                        <svg
+                            className="absolute inset-0 w-full h-full pointer-events-none"
+                            viewBox={`0 0 ${normalizedPoseOverlay.width} ${normalizedPoseOverlay.height}`}
+                            preserveAspectRatio="none"
+                            role="img"
+                            aria-label="Pose overlay"
+                        >
+                            {normalizedPoseOverlay.connections.map(({ from, to }, index) => {
+                                const fromPoint = normalizedPoseOverlay.points[from];
+                                const toPoint = normalizedPoseOverlay.points[to];
+
+                                if (!fromPoint || !toPoint) return null;
+
+                                return (
+                                    <line
+                                        key={`${from}-${to}-${index}`}
+                                        x1={fromPoint.x}
+                                        y1={fromPoint.y}
+                                        x2={toPoint.x}
+                                        y2={toPoint.y}
+                                        stroke="#38bdf8"
+                                        strokeWidth="4"
+                                        strokeLinecap="round"
+                                        opacity="0.9"
+                                    />
+                                );
+                            })}
+                            {Object.entries(normalizedPoseOverlay.points).map(([key, point]) => (
+                                <g key={key}>
+                                    <circle cx={point.x} cy={point.y} r="7" fill="#22c55e" opacity="0.95" />
+                                    <circle cx={point.x} cy={point.y} r="12" fill="#22c55e" opacity="0.18" />
+                                </g>
+                            ))}
+                        </svg>
+                    )}
                     {!stream && (
                         <div className="absolute inset-0 flex items-center justify-center">
                             <div className="text-center">
@@ -223,6 +289,7 @@ const PostureCam = ({ darkMode = false }) => {
                     ) : (
                         <>
                             <button onClick={handleStop}
+                                aria-label="Stop Tracking"
                                 className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${dm ? 'bg-red-900/30 text-red-400 hover:bg-red-900/50 border border-red-800/40' : 'bg-red-500 text-white hover:bg-red-600'}`}>
                                 <StopCircle className="w-4 h-4" />Stop
                             </button>

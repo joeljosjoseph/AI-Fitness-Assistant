@@ -95,7 +95,7 @@ const Hydration = ({ darkMode = false }) => {
                 if (p.hydration) { setDailyGoal(p.hydration.dailyGoal || 2500); setWaterIntake(p.hydration.currentProgress || 0); setWorkoutIntensity(p.hydration.workoutIntensity || "moderate"); setNotifications(p.hydration.reminder || false); }
                 if (p._id) {
                     setUserId(p._id);
-                    const res = await fetch(`/api/user/me?userId=${p._id}`);
+                    const res = await fetch(`/api/users/me?userId=${p._id}`);
                     if (res.ok) { const { user } = await res.json(); if (user?.hydration) { setWaterIntake(user.hydration.currentProgress || 0); setDailyGoal(user.hydration.dailyGoal || 2500); setWorkoutIntensity(user.hydration.workoutIntensity || "moderate"); setNotifications(user.hydration.reminder || false); localStorage.setItem("user", JSON.stringify(user)); } }
                 }
             } catch (e) { console.error(e); } finally { setLoadingUser(false); }

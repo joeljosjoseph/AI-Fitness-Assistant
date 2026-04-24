@@ -169,7 +169,7 @@ const MessageBubble = ({ msg, dm = false }) => {
     const isAssistant = msg.role === 'assistant';
     const isWorkoutPlan = isAssistant && msg.isWorkoutPlan;
     return (
-        <div className={`flex items-start gap-3 ${!isAssistant ? 'flex-row-reverse' : ''}`}>
+        <div className={`flex items-start gap-3 ${isAssistant ? '' : 'flex-row-reverse'}`}>
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${isAssistant
                 ? 'bg-gray-800'
                 : (dm ? 'bg-[#2e2e2e]' : 'bg-gray-200')
@@ -401,7 +401,7 @@ const Chatbot = ({ darkMode = false }) => {
                                 <div className={`p-4 rounded-2xl rounded-tl-none ${dm ? 'bg-[#242424]' : 'bg-gray-50'}`}>
                                     <div className="flex items-center gap-2">
                                         <Loader2 className={`w-4 h-4 animate-spin ${muted}`} />
-                                        <span className={`text-xs ${muted}`}>{collectingProfile ? 'Processing…' : 'Generating your plan…'}</span>
+                                        <span className={`text-xs ${muted}`}>{collectingProfile ? '…' : '…'}</span>
                                     </div>
                                 </div>
                             </div>
