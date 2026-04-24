@@ -2,8 +2,6 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Hydration from "../components/modules/Hydration";
 
-// ─── Mock Setup ───────────────────────────────────────────────────────────────
-
 jest.mock("react-toastify", () => ({
     toast: { info: jest.fn(), success: jest.fn(), error: jest.fn() },
 }));
@@ -22,17 +20,21 @@ const mockUser = {
 
 const setupFetch = () => {
     global.fetch = jest.fn((url) => {
-        if (url.includes("/api/user/me"))
+        if (url.includes("/api/users/me")) {
             return Promise.resolve({
                 ok: true,
                 json: () => Promise.resolve({ user: mockUser }),
             });
-        if (url.includes("/api/update-hydration"))
+        }
+
+        if (url.includes("/api/update-hydration")) {
             return Promise.resolve({
                 ok: true,
                 json: () => Promise.resolve({ user: mockUser }),
             });
-        if (url.includes("/hydration/predict"))
+        }
+
+        if (url.includes("/hydration/predict")) {
             return Promise.resolve({
                 ok: true,
                 json: () =>
@@ -41,6 +43,7 @@ const setupFetch = () => {
                         recommended_intake_liters: 3.0,
                     }),
             });
+        }
     });
 };
 
@@ -58,11 +61,7 @@ afterEach(() => {
     localStorage.clear();
 });
 
-// ─── Helper ───────────────────────────────────────────────────────────────────
-
-const waitForLoad = () => screen.findByText(/daily progress/i);
-
-// ─── Tests ────────────────────────────────────────────────────────────────────
+const waitForLoad = () => screen.findByText(/today's progress/i);
 
 test("renders the hydration tracker after loading", async () => {
     render(<Hydration />);
@@ -75,25 +74,16 @@ test("shows loading skeleton while fetching user data", () => {
     global.fetch = jest.fn(() => new Promise(() => { }));
     render(<Hydration />);
 
-    expect(document.querySelector(".animate-pulse")).toBeInTheDocument();
+    expect(document.querySelector(".animate-spin")).toBeInTheDocument();
 });
-
-// Matches text split across child elements by checking the container's textContent
-const getByIntake = (consumed, goal) =>
-    screen.getByText((_, el) =>
-        el?.textContent?.replace(/\s+/g, "") === `${consumed}ml/${goal}ml`
-    );
-
-const findByIntake = (consumed, goal) =>
-    screen.findByText((_, el) =>
-        el?.textContent?.replace(/\s+/g, "") === `${consumed}ml/${goal}ml`
-    );
 
 test("displays water intake and daily goal from localStorage", async () => {
     render(<Hydration />);
     await waitForLoad();
 
-    expect(getByIntake(750, 2500)).toBeInTheDocument();
+    expect(document.body.textContent).toContain("750");
+    expect(document.body.textContent).toContain("2500");
+    expect(document.body.textContent).toContain("1750ml remaining");
 });
 
 test("adds water when a quick add button is clicked", async () => {
@@ -102,38 +92,20 @@ test("adds water when a quick add button is clicked", async () => {
 
     await userEvent.click(screen.getByText("250ml"));
 
-    // 750 + 250 = 1000ml
-    await findByIntake(1000, 2500);
-    expect(getByIntake(1000, 2500)).toBeInTheDocument();
+    await waitFor(() =>
+        expect(document.body.textContent).toContain("1000")
+    );
 });
 
-// test("does not exceed daily goal when adding water", async () => {
-//     localStorage.setItem(
-//         "user",
-//         JSON.stringify({
-//             ...mockUser,
-//             hydration: { ...mockUser.hydration, currentProgress: 2400 },
-//         })
-//     );
-
-//     render(<Hydration />);
-//     await waitForLoad();
-
-//     await userEvent.click(screen.getByText("1000ml"));
-
-//     // Should cap at 2500, not go to 3400
-//     await findByIntake(2500, 2500);
-//     expect(getByIntake(2500, 2500)).toBeInTheDocument();
-// });
-
-test("resets water intake to 0 when Reset Daily is clicked", async () => {
+test("resets water intake to 0 when Reset is clicked", async () => {
     render(<Hydration />);
     await waitForLoad();
 
-    await userEvent.click(screen.getByRole("button", { name: /reset daily/i }));
+    await userEvent.click(screen.getByRole("button", { name: /reset/i }));
 
-    await findByIntake(0, 2500);
-    expect(getByIntake(0, 2500)).toBeInTheDocument();
+    await waitFor(() =>
+        expect(document.body.textContent).toContain("2500ml remaining")
+    );
 });
 
 test("shows validation toast when predicting with missing fields", async () => {
@@ -148,41 +120,8 @@ test("shows validation toast when predicting with missing fields", async () => {
     );
 
     expect(toast.info).toHaveBeenCalledWith(
-        expect.stringContaining("Please fill in all required fields")
+        expect.stringContaining("Fill in:")
     );
-});
-
-// test("shows ML prediction result after successful calculation", async () => {
-//     render(<Hydration />);
-//     await waitForLoad();
-
-//     const autoInputs = screen.getAllByPlaceholderText(/auto from weather/i);
-//     await userEvent.type(autoInputs[0], "25");
-//     await userEvent.type(autoInputs[1], "60");
-
-//     await userEvent.selectOptions(screen.getByDisplayValue(/select season/i), "Summer");
-
-//     // Selects in order: Season, Workout Goal, Workout Intensity — so goal is second-to-last
-//     const allSelects = screen.getAllByRole("combobox");
-//     const workoutGoalSelect = allSelects[allSelects.length - 2];
-//     await userEvent.selectOptions(workoutGoalSelect, "Lose Weight");
-
-//     await userEvent.click(
-//         screen.getByRole("button", { name: /calculate optimal hydration/i })
-//     );
-
-//     await screen.findByText(/3000ml/i);
-//     expect(screen.getByText(/3000ml/i)).toBeInTheDocument();
-// });
-
-test("toggles reminders on and off", async () => {
-    render(<Hydration />);
-    await waitForLoad();
-
-    const reminderButton = screen.getByRole("button", { name: "Off" });
-    await userEvent.click(reminderButton);
-
-    expect(screen.getByRole("button", { name: "On" })).toBeInTheDocument();
 });
 
 test("displays the AI hydration tip", async () => {

@@ -26,6 +26,12 @@ const DietPlanner = ({ darkMode = false }) => {
         ? 'bg-[#242424] border border-[#2e2e2e] text-white placeholder-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-40'
         : 'bg-white border border-gray-200 text-gray-800 placeholder-gray-400 focus:border-gray-400 focus:ring-1 focus:ring-gray-400 disabled:bg-gray-50 disabled:opacity-60';
     const labelCls = `text-[11px] font-semibold uppercase tracking-widest mb-1.5 flex items-center gap-1.5 ${muted}`;
+    const inputIds = {
+        gender: 'diet-gender',
+        goal: 'diet-goal',
+        weight: 'diet-weight',
+        height: 'diet-height',
+    };
 
     const getBMIColor = (bmi) => {
         if (bmi < 18.5) return dm ? 'text-blue-400' : 'text-blue-600';
@@ -148,29 +154,31 @@ const DietPlanner = ({ darkMode = false }) => {
                 <div className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label className={labelCls}><User className="w-3 h-3" />Gender</label>
+                            <label htmlFor={inputIds.gender} className={labelCls}><User className="w-3 h-3" />Gender</label>
                             <select name="gender" value={formData.gender} onChange={handleInputChange} disabled={loading}
+                                id={inputIds.gender}
                                 className={`w-full px-3 py-2.5 rounded-xl text-sm outline-none transition-all ${inputCls}`}>
                                 <option value="">Select Gender</option>
                                 {availableOptions?.genders?.map(g => <option key={g} value={g}>{g}</option>)}
                             </select>
                         </div>
                         <div>
-                            <label className={labelCls}><Target className="w-3 h-3" />Fitness Goal</label>
+                            <label htmlFor={inputIds.goal} className={labelCls}><Target className="w-3 h-3" />Fitness Goal</label>
                             <select name="goal" value={formData.goal} onChange={handleInputChange} disabled={loading}
+                                id={inputIds.goal}
                                 className={`w-full px-3 py-2.5 rounded-xl text-sm outline-none transition-all ${inputCls}`}>
                                 <option value="">Select Goal</option>
                                 {availableOptions?.goals?.map(g => <option key={g} value={g}>{g}</option>)}
                             </select>
                         </div>
                         <div>
-                            <label className={labelCls}><Scale className="w-3 h-3" />Weight (kg)</label>
-                            <input type="number" name="weight_kg" value={formData.weight_kg} onChange={handleInputChange} disabled={loading} step="0.1" min="1" placeholder="e.g. 70"
+                            <label htmlFor={inputIds.weight} className={labelCls}><Scale className="w-3 h-3" />Weight (kg)</label>
+                            <input id={inputIds.weight} type="number" name="weight_kg" value={formData.weight_kg} onChange={handleInputChange} disabled={loading} step="0.1" min="1" placeholder="e.g. 70"
                                 className={`w-full px-3 py-2.5 rounded-xl text-sm outline-none transition-all ${inputCls}`} />
                         </div>
                         <div>
-                            <label className={labelCls}><Ruler className="w-3 h-3" />Height (cm)</label>
-                            <input type="number" name="height_cm" value={formData.height_cm} onChange={handleInputChange} disabled={loading} step="0.1" min="1" placeholder="e.g. 175"
+                            <label htmlFor={inputIds.height} className={labelCls}><Ruler className="w-3 h-3" />Height (cm)</label>
+                            <input id={inputIds.height} type="number" name="height_cm" value={formData.height_cm} onChange={handleInputChange} disabled={loading} step="0.1" min="1" placeholder="e.g. 175"
                                 className={`w-full px-3 py-2.5 rounded-xl text-sm outline-none transition-all ${inputCls}`} />
                         </div>
                     </div>

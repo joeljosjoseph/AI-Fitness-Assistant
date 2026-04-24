@@ -52,11 +52,8 @@ afterEach(() => {
 });
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
-// The selects have no htmlFor/id linkage so we query by position:
-// index 0 = Gender, index 1 = Fitness Goal
-
-const getGenderSelect = () => screen.getAllByRole("combobox")[0];
-const getGoalSelect = () => screen.getAllByRole("combobox")[1];
+const getGenderSelect = () => screen.getByLabelText(/gender/i);
+const getGoalSelect = () => screen.getByLabelText(/fitness goal/i);
 
 const fillAndSubmit = async () => {
     await userEvent.selectOptions(getGenderSelect(), "Male");
@@ -76,8 +73,8 @@ test("pre-fills weight and height fields from localStorage", async () => {
     render(<DietPlanner />);
     await screen.findByText(/diet planner/i);
 
-    expect(screen.getByPlaceholderText(/enter your weight/i)).toHaveValue(70);
-    expect(screen.getByPlaceholderText(/enter your height/i)).toHaveValue(170);
+    expect(screen.getByLabelText(/weight \(kg\)/i)).toHaveValue(70);
+    expect(screen.getByLabelText(/height \(cm\)/i)).toHaveValue(170);
 });
 
 test("shows validation message when submitting empty form", async () => {

@@ -11,11 +11,11 @@ import { logout } from "../utils/auth";
 const NAV_ITEMS = [
   { icon: Home, label: "Dashboard", value: "dashboard" },
   { icon: Dumbbell, label: "Workouts", value: "workouts" },
-  { icon: Droplets, label: "Hydration", value: "hydration" },
   { icon: Camera, label: "Posture Tracker", value: "camera" },
   { icon: MessageCircle, label: "AI Assistant", value: "chat" },
-  { icon: Drumstick, label: "Diet Planner", value: "dietPlanner" },
   { icon: Refrigerator, label: "Fridge Detector", value: "fridgeDetector" },
+  { icon: Drumstick, label: "Diet Planner", value: "dietPlanner" },
+  { icon: Droplets, label: "Hydration", value: "hydration" },
 ];
 
 // Declared outside Sidebar so React never recreates it on every render

@@ -183,6 +183,10 @@ export default function AuthPage() {
 
   const inputCls =
     "w-full px-4 py-3 rounded-xl border border-[#e5e7eb] bg-[#fafafa] text-[#111111] placeholder-[#d1d5db] focus:border-[#374151] focus:ring-2 focus:ring-[#37415112] outline-none transition-all disabled:bg-gray-50 disabled:cursor-not-allowed text-sm";
+  const nameInputId = "auth-name";
+  const emailInputId = "auth-email";
+  const passwordInputId = "auth-password";
+  const confirmPasswordInputId = "auth-confirm-password";
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center p-4">
@@ -233,10 +237,11 @@ export default function AuthPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
               <div>
-                <label className="block text-[11px] font-semibold text-[#6b7280] uppercase tracking-widest mb-1.5">
+                <label htmlFor={nameInputId} className="block text-[11px] font-semibold text-[#6b7280] uppercase tracking-widest mb-1.5">
                   Full name
                 </label>
                 <input
+                  id={nameInputId}
                   type="text"
                   name="name"
                   value={formData.name}
@@ -250,10 +255,11 @@ export default function AuthPage() {
             )}
 
             <div>
-              <label className="block text-[11px] font-semibold text-[#6b7280] uppercase tracking-widest mb-1.5">
+              <label htmlFor={emailInputId} className="block text-[11px] font-semibold text-[#6b7280] uppercase tracking-widest mb-1.5">
                 Email address
               </label>
               <input
+                id={emailInputId}
                 type="email"
                 name="email"
                 value={formData.email}
@@ -266,10 +272,11 @@ export default function AuthPage() {
             </div>
 
             <div>
-              <label className="block text-[11px] font-semibold text-[#6b7280] uppercase tracking-widest mb-1.5">
+              <label htmlFor={passwordInputId} className="block text-[11px] font-semibold text-[#6b7280] uppercase tracking-widest mb-1.5">
                 Password
               </label>
               <input
+                id={passwordInputId}
                 type="password"
                 name="password"
                 value={formData.password}
@@ -289,10 +296,11 @@ export default function AuthPage() {
 
             {!isLogin && (
               <div>
-                <label className="block text-[11px] font-semibold text-[#6b7280] uppercase tracking-widest mb-1.5">
+                <label htmlFor={confirmPasswordInputId} className="block text-[11px] font-semibold text-[#6b7280] uppercase tracking-widest mb-1.5">
                   Confirm password
                 </label>
                 <input
+                  id={confirmPasswordInputId}
                   type="password"
                   name="confirmPassword"
                   value={formData.confirmPassword}
