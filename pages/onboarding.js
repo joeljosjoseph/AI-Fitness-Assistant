@@ -211,7 +211,7 @@ export default function OnboardingPage() {
             const userId = storedUser._id;
 
             // ── 1. Generate workout plan via Gemini ──────────────────────────
-            const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
+            const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
             const model = genAI.getGenerativeModel({
                 model: 'gemini-flash-latest',
                 systemInstruction: WORKOUT_SYSTEM_INSTRUCTION,

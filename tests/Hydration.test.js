@@ -50,7 +50,7 @@ const setupFetch = () => {
 beforeEach(() => {
     setupFetch();
     localStorage.setItem("user", JSON.stringify(mockUser));
-    process.env.NEXT_PUBLIC_API_URL = "http://localhost:8000";
+    process.env.MODEL_API_SECRET_KEY = "http://localhost:8000";
     jest.spyOn(console, "error").mockImplementation(() => { });
     jest.spyOn(console, "log").mockImplementation(() => { });
 });

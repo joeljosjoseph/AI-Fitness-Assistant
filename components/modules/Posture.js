@@ -16,7 +16,7 @@ const PostureCam = ({ darkMode = false }) => {
     const [error, setError] = useState('');
     const intervalRef = useRef(null);
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL;
+    const API_URL = process.env.MODEL_API_SECRET_KEY;
     const workouts = ['Push Up', 'Pull Up', 'Squat', 'Lunge', 'Biceps Curl', 'Shoulder Press', 'Plank', 'Jumping Jack'];
 
     // ── Theme tokens ──

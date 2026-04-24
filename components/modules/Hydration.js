@@ -108,7 +108,7 @@ const Hydration = ({ darkMode = false }) => {
         if (missing.length) { toast.info(`Fill in: ${missing.join(", ")}`); return; }
         setPredictingML(true);
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/hydration/predict`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ age: +mlInputs.age, weight: +mlInputs.weight, height: +mlInputs.height, humidity: +mlInputs.humidity, temperature: +mlInputs.temperature, workout_goal: mlInputs.workout_goal, season: mlInputs.season }) });
+            const res = await fetch(`${process.env.MODEL_API_SECRET_KEY}/hydration/predict`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ age: +mlInputs.age, weight: +mlInputs.weight, height: +mlInputs.height, humidity: +mlInputs.humidity, temperature: +mlInputs.temperature, workout_goal: mlInputs.workout_goal, season: mlInputs.season }) });
             if (!res.ok) throw new Error("Prediction failed");
             const prediction = await res.json();
             setMlPrediction(prediction); setDailyGoal(prediction.recommended_intake_ml);
